@@ -37,7 +37,7 @@
 @mixin scrollBar {
 	// 滚动条凹槽的颜色，还可以设置边框属性
 	&::-webkit-scrollbar-track-piece {
-		background-color: #f8f8f8;
+		background-color: var(--el-fill-color-lighter);
 	}
 	// 滚动条的宽度
 	&::-webkit-scrollbar {
@@ -46,11 +46,11 @@
 	}
 	// 滚动条的设置
 	&::-webkit-scrollbar-thumb {
-		background-color: #dddddd;
+		background-color: var(--el-border-color);
 		background-clip: padding-box;
 		min-height: 28px;
 	}
 	&::-webkit-scrollbar-thumb:hover {
-		background-color: #bbb;
+		background-color: var(--el-border-color-dark);
 	}
 }

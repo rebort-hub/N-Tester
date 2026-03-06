@@ -40,6 +40,15 @@ export function resetAllStores() {
 
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	for (const [_key, store] of allStores) {
-		store.$reset();
+		// 检查 store 是否有 $reset 方法（setup 语法的 store 没有这个方法）
+		if (typeof store.$reset === 'function') {
+			try {
+				store.$reset();
+			} catch (error) {
+				console.warn(`Failed to reset store ${_key}:`, error);
+			}
+		} else {
+			console.warn(`Store ${_key} does not support $reset() method (likely using setup syntax)`);
+		}
 	}
 }

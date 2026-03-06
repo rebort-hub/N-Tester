@@ -6,9 +6,9 @@
 // 背景图配置
 export const backgroundImages = {
   // 登录页背景图
-  loginBg: new URL('../assets/bakgrounImage/fastapiwebadmin.png', import.meta.url).href,
+  loginBg: new URL('../assets/bakgrounImage/N-Tester.png', import.meta.url).href,
   // 锁屏背景图
-  lockScreenBg: new URL('../assets/bakgrounImage/fastapiwebadmin.png', import.meta.url).href,
+  lockScreenBg: new URL('../assets/bakgrounImage/N-Tester.png', import.meta.url).href,
   // 默认背景图（可用于其他页面）
   defaultBg: new URL('../assets/bakgrounImage/bakgrounImage.jpg', import.meta.url).href,
 };

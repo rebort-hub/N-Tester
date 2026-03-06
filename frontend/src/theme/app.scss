@@ -9,13 +9,13 @@
 
 :root {
   --next-color-white: #ffffff;
-  --next-bg-main-color: #f8f8f8;
-  --next-bg-color: #f5f5ff;
-  --next-border-color-light: #f1f2f3;
-  --next-color-primary-lighter: #ecf5ff;
-  --next-color-success-lighter: #f0f9eb;
-  --next-color-warning-lighter: #fdf6ec;
-  --next-color-danger-lighter: #fef0f0;
+  --next-bg-main-color: var(--el-bg-color-page);
+  --next-bg-color: var(--el-bg-color);
+  --next-border-color-light: var(--el-border-color-light);
+  --next-color-primary-lighter: var(--el-color-primary-light-9);
+  --next-color-success-lighter: var(--el-color-success-light-9);
+  --next-color-warning-lighter: var(--el-color-warning-light-9);
+  --next-color-danger-lighter: var(--el-color-danger-light-9);
   --next-color-dark-hover: #0000001a;
   --next-color-menu-hover: rgba(0, 0, 0, 0.2);
   --next-color-user-hover: rgba(0, 0, 0, 0.04);

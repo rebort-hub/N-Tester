@@ -15,9 +15,9 @@
 				<el-input v-model="form.description" type="textarea" :rows="4" placeholder="请输入版本描述" />
 			</el-form-item>
 
-			<el-form-item label="基线版本">
+			<el-form-item label="主干版本">
 				<el-switch v-model="form.is_baseline" active-text="是" inactive-text="否" />
-				<div style="color: #909399; font-size: 12px; margin-top: 5px">基线版本用于标记重要的版本里程碑</div>
+				<div style="color: #909399; font-size: 12px; margin-top: 5px">主干版本用于标记重要的版本里程碑</div>
 			</el-form-item>
 
 			<el-form-item label="关联项目" v-if="!versionId">

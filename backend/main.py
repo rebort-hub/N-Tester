@@ -35,7 +35,7 @@ async def start_app(app: FastAPI):
 
 def create_app() -> FastAPI:
     app: FastAPI = FastAPI(
-        title="Fast Element Admin API",
+        title="N-Tester2.0 API",
         description=config.SERVER_DESC,
         version=str(config.SERVER_VERSION),  # 确保版本号是字符串
         lifespan=start_app,

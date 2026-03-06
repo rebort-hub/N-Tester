@@ -7,6 +7,43 @@ from sqlalchemy.orm import relationship
 from app.models.base import Base
 
 
+class ModuleInfoModel(Base):
+    """测试模块信息模型"""
+    __tablename__ = 'module_info'
+    __table_args__ = (
+        Index("idx_module_project", "project_id"),
+        Index("idx_module_parent", "parent_id"),
+        {'comment': '测试模块信息表', 'mysql_charset': 'utf8mb4'}
+    )
+    
+    name = Column(String(100), nullable=False, comment='模块名称')
+    project_id = Column(Integer, nullable=False, comment='所属项目ID')
+    parent_id = Column(BigInteger, ForeignKey("module_info.id", ondelete="CASCADE"), nullable=True, comment='父模块ID')
+    description = Column(Text, nullable=True, comment='模块描述')
+    sort_order = Column(Integer, default=0, comment='排序顺序')
+    
+    # 自引用关系
+    children = relationship("ModuleInfoModel", 
+                          back_populates="parent",
+                          cascade="all, delete-orphan",
+                          foreign_keys=[parent_id])
+    parent = relationship("ModuleInfoModel", 
+                         back_populates="children",
+                         remote_side="ModuleInfoModel.id",
+                         foreign_keys=[parent_id])
+    
+    def __repr__(self):
+        try:
+            # 使用 __dict__ 直接访问属性，避免触发延迟加载
+            id_val = self.__dict__.get('id', 'N/A')
+            name_val = self.__dict__.get('name', 'N/A')
+            project_id_val = self.__dict__.get('project_id', 'N/A')
+            parent_id_val = self.__dict__.get('parent_id', 'N/A')
+            return f"<ModuleInfo(id={id_val}, name='{name_val}', project_id={project_id_val}, parent_id={parent_id_val})>"
+        except:
+            return f"<ModuleInfo(detached)>"
+
+
 class TestCaseModel(Base):
     """测试用例模型"""
     
@@ -19,6 +56,7 @@ class TestCaseModel(Base):
     )
     
     project_id = Column(BigInteger, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, comment="项目ID")
+    module_id = Column(BigInteger, ForeignKey("module_info.id", ondelete="SET NULL"), nullable=True, comment="模块ID")
     title = Column(String(500), nullable=False, comment="用例标题")
     description = Column(Text, comment="用例描述")
     preconditions = Column(Text, comment="前置条件")
@@ -32,6 +70,7 @@ class TestCaseModel(Base):
     
     # 关系
     project = relationship("ProjectModel", foreign_keys=[project_id])
+    module = relationship("ModuleInfoModel", foreign_keys=[module_id])
     author = relationship("UserModel", foreign_keys=[author_id])
     assignee = relationship("UserModel", foreign_keys=[assignee_id])
     steps = relationship("TestCaseStepModel", back_populates="test_case", cascade="all, delete-orphan", order_by="TestCaseStepModel.step_number")

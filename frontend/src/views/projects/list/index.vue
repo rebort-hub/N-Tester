@@ -72,17 +72,8 @@
             {{ formatDateTime(row.creation_date) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="450" align="center" fixed="right">
+        <el-table-column label="操作" width="380" align="center" fixed="right">
           <template #default="{ row }">
-            <el-button
-              size="small"
-              type="info"
-              @click="handleDetail(row)"
-              v-auth="'projects:list:view'"
-            >
-              <el-icon><ele-View /></el-icon>
-              详情
-            </el-button>
             <el-button
               size="small"
               type="primary"
@@ -291,11 +282,6 @@ const handleAdd = () => {
   formData.description = '';
   formData.status = 'active';
   dialogVisible.value = true;
-};
-
-// 查看详情
-const handleDetail = (row: any) => {
-  router.push(`/projects/list/detail/${row.id}`);
 };
 
 // 编辑

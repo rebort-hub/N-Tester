@@ -3,13 +3,13 @@
 """
 
 from typing import Optional, List
-from sqlalchemy import select, and_, func, or_
+from sqlalchemy import select, and_, func, or_, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from app.core.base_crud import BaseCRUD
 from app.api.v1.testcases.model import (
     TestCaseModel, TestCaseStepModel, VersionModel,
-    ProjectVersionModel, TestCaseVersionModel
+    ProjectVersionModel, TestCaseVersionModel, ModuleInfoModel
 )
 
 
@@ -28,6 +28,7 @@ class TestCaseCRUD(BaseCRUD[TestCaseModel]):
                 selectinload(self.model.steps),
                 selectinload(self.model.author),
                 selectinload(self.model.assignee),
+                selectinload(self.model.module),
                 selectinload(self.model.versions)
             )
         )
@@ -60,6 +61,7 @@ class TestCaseCRUD(BaseCRUD[TestCaseModel]):
                 selectinload(self.model.steps),
                 selectinload(self.model.author),
                 selectinload(self.model.assignee),
+                selectinload(self.model.module),
                 selectinload(self.model.versions)
             )
             .order_by(self.model.creation_date.desc())
@@ -250,4 +252,97 @@ class TestCaseVersionCRUD(BaseCRUD[TestCaseVersionModel]):
         associations = result.scalars().all()
         for association in associations:
             await self.db.delete(association)
+        await self.db.commit()
+
+
+
+class ModuleInfoCRUD(BaseCRUD[ModuleInfoModel]):
+    """模块信息CRUD"""
+    
+    def __init__(self, db: AsyncSession):
+        super().__init__(ModuleInfoModel, db)
+    
+    async def get_by_project_crud(self, project_id: int) -> List[ModuleInfoModel]:
+        """获取项目下的所有模块"""
+        stmt = (
+            select(self.model)
+            .where(
+                and_(
+                    self.model.project_id == project_id,
+                    self.model.enabled_flag == 1
+                )
+            )
+            .order_by(self.model.creation_date.desc())
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+    
+    async def get_by_name_crud(self, project_id: int, name: str) -> Optional[ModuleInfoModel]:
+        """根据名称查找模块"""
+        stmt = select(self.model).where(
+            and_(
+                self.model.project_id == project_id,
+                self.model.name == name,
+                self.model.enabled_flag == 1
+            )
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+    
+    async def get_with_testcase_count_crud(self, project_id: int) -> List[dict]:
+        """获取模块列表及用例数量"""
+        query = text("""
+            SELECT 
+                mi.id,
+                mi.name,
+                mi.project_id,
+                mi.parent_id,
+                mi.description,
+                mi.sort_order,
+                mi.creation_date,
+                mi.created_by,
+                mi.updation_date,
+                mi.updated_by,
+                mi.enabled_flag,
+                COUNT(tc.id) as testcase_count
+            FROM module_info mi
+            LEFT JOIN test_cases tc ON mi.id = tc.module_id AND tc.enabled_flag = 1
+            WHERE mi.project_id = :project_id AND mi.enabled_flag = 1
+            GROUP BY mi.id, mi.name, mi.project_id, mi.parent_id, mi.description, 
+                     mi.sort_order, mi.creation_date, mi.created_by, mi.updation_date, 
+                     mi.updated_by, mi.enabled_flag
+            ORDER BY mi.sort_order, mi.creation_date DESC
+        """)
+        
+        result = await self.db.execute(query, {'project_id': project_id})
+        rows = result.fetchall()
+        
+        modules = []
+        for row in rows:
+            modules.append({
+                'id': row[0],
+                'name': row[1],
+                'project_id': row[2],
+                'parent_id': row[3],
+                'description': row[4],
+                'sort_order': row[5],
+                'creation_date': row[6],
+                'created_by': row[7],
+                'updation_date': row[8],
+                'updated_by': row[9],
+                'enabled_flag': row[10],
+                'testcase_count': row[11]
+            })
+        
+        return modules
+    
+    async def soft_delete_crud(self, module_ids: List[int]) -> None:
+        """软删除模块"""
+        from sqlalchemy import update
+        
+        stmt = update(self.model).where(
+            self.model.id.in_(module_ids)
+        ).values(enabled_flag=0)
+        
+        await self.db.execute(stmt)
         await self.db.commit()

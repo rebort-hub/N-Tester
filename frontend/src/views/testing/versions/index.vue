@@ -6,7 +6,7 @@
 				<el-form-item label="版本名称">
 					<el-input v-model="queryForm.name" placeholder="请输入版本名称" clearable @keyup.enter="handleQuery" style="width: 200px" />
 				</el-form-item>
-				<el-form-item label="基线版本">
+				<el-form-item label="主干版本">
 					<el-select v-model="queryForm.is_baseline" placeholder="请选择" clearable style="width: 120px">
 						<el-option label="是" :value="true" />
 						<el-option label="否" :value="false" />
@@ -39,7 +39,7 @@
 				<el-table-column prop="id" label="ID" width="80" />
 				<el-table-column prop="name" label="版本名称" min-width="150" />
 				<el-table-column prop="description" label="版本描述" min-width="200" show-overflow-tooltip />
-				<el-table-column prop="is_baseline" label="基线版本" width="100" align="center">
+				<el-table-column prop="is_baseline" label="主干版本" width="100" align="center">
 					<template #default="{ row }">
 						<el-tag v-if="row.is_baseline" type="success">是</el-tag>
 						<el-tag v-else type="info">否</el-tag>

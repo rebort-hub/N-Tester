@@ -23,9 +23,21 @@ export const useAuthStore = defineStore("auth", () => {
 	}
 
 	async function Logout() {
-		await useUserApi().logout();
+		try {
+			await useUserApi().logout();
+		} catch (error) {
+			console.warn('Logout API call failed:', error);
+		}
+		
+		// 清除会话数据
 		Session.clear();
-		resetAllStores()
+		
+		// 尝试重置所有 stores，但不让错误阻止退出流程
+		try {
+			resetAllStores();
+		} catch (error) {
+			console.warn('Failed to reset some stores during logout:', error);
+		}
 	}
 
 	return {

@@ -17,8 +17,10 @@ class BaseSchema(BaseModel):
 class TimestampSchema(BaseSchema):
     """时间戳Schema"""
     
-    created_at: Optional[datetime] = Field(None, description="创建时间")
-    updated_at: Optional[datetime] = Field(None, description="更新时间")
+    created_at: Optional[datetime] = Field(None, alias="creation_date", description="创建时间")
+    updated_at: Optional[datetime] = Field(None, alias="updation_date", description="更新时间")
+    
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class AuditSchema(BaseSchema):

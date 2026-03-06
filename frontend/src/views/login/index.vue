@@ -41,7 +41,7 @@
 
     <div class="login-footer">
       <div class="login-footer__content">
-        <span style="color: #fff">fastapiwebadmin</span> |
+        <span style="color: #fff">N-Tester平台</span> |
         <a style="color: #fff" href="https://beian.miit.gov.cn/" class="slide" target="_blank">贵ICP备202698015号</a>
       </div>
     </div>

@@ -118,7 +118,22 @@ const viteConfig = defineConfig((mode: ConfigEnv) => {
       },
     },
     css: {
-      preprocessorOptions: {css: {charset: false}},
+      preprocessorOptions: {
+        css: {charset: false},
+        scss: {
+          // 静默所有弃用警告
+          silenceDeprecations: ['legacy-js-api', 'import'],
+          // 静默依赖警告
+          quietDeps: true,
+          // 设置字符集
+          charset: false,
+          // 额外的Sass选项
+          additionalData: `
+            // 全局变量可以在这里定义
+            // $primary-color: #409eff;
+          `
+        }
+      },
       postcss: {
         plugins: [
           {
@@ -132,7 +147,6 @@ const viteConfig = defineConfig((mode: ConfigEnv) => {
             },
           },
         ],
-
       },
     },
     define: {

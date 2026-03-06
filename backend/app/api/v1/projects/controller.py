@@ -2,7 +2,7 @@
 项目管理API控制器
 """
 
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -40,8 +40,8 @@ async def create_project(
 async def get_project_list(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
-    name: str = Query(None, description="项目名称"),
-    status: str = Query(None, description="项目状态"),
+    name: Optional[str] = Query(None, description="项目名称"),
+    status: Optional[str] = Query(None, description="项目状态"),
     db: AsyncSession = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id)
 ):
@@ -49,8 +49,8 @@ async def get_project_list(
     query = ProjectQuerySchema(
         page=page,
         page_size=page_size,
-        name=name,
-        status=status
+        name=name if name and name.strip() else None,
+        status=status if status and status.strip() else None
     )
     return await ProjectService.get_project_list_service(query, current_user_id, db)
 

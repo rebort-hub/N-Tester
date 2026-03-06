@@ -123,3 +123,35 @@ export function associateTestCases(data: any) {
 		data,
 	});
 }
+
+// ========== Excel导入导出相关接口 ==========
+
+/**
+ * 从Excel导入测试用例
+ */
+export function importTestCasesFromExcel(file: File, project_id: number, module_id?: number) {
+	const formData = new FormData();
+	formData.append('file', file);
+	formData.append('project_id', project_id.toString());
+	if (module_id) {
+		formData.append('module_id', module_id.toString());
+	}
+	return request({
+		url: '/v1/testcases/import-from-excel',
+		method: 'post',
+		data: formData,
+		headers: { 'Content-Type': 'multipart/form-data' },
+	});
+}
+
+/**
+ * 导出测试用例到Excel
+ */
+export function exportTestCasesToExcel(params: any) {
+	return request({
+		url: '/v1/testcases/export-to-excel',
+		method: 'get',
+		params,
+		responseType: 'blob',
+	});
+}

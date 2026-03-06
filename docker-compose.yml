@@ -8,7 +8,7 @@ services:
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123456}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-fastapiwebadmin}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ntester}
       MYSQL_USER: ${MYSQL_USER:-admin}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-admin123456}
       TZ: Asia/Shanghai
@@ -58,10 +58,10 @@ services:
       - "8100:8100"
     environment:
       - REDIS_URI=redis://redis:6379/4
-      - MYSQL_DATABASE_URI=mysql+asyncmy://${MYSQL_USER:-admin}:${MYSQL_PASSWORD:-admin123456}@mysql:3306/${MYSQL_DATABASE:-fastapiwebadmin}?charset=UTF8MB4
+      - MYSQL_DATABASE_URI=mysql+asyncmy://${MYSQL_USER:-admin}:${MYSQL_PASSWORD:-admin123456}@mysql:3306/${MYSQL_DATABASE:-ntester}?charset=UTF8MB4
       - CELERY_BROKER_URL=redis://redis:6379/5
       - CELERY_RESULT_BACKEND=redis://redis:6379/5
-      - CELERY_BEAT_DB_URL=mysql+pymysql://${MYSQL_USER:-admin}:${MYSQL_PASSWORD:-admin123456}@mysql:3306/${MYSQL_DATABASE:-fastapiwebadmin}?charset=UTF8MB4
+      - CELERY_BEAT_DB_URL=mysql+pymysql://${MYSQL_USER:-admin}:${MYSQL_PASSWORD:-admin123456}@mysql:3306/${MYSQL_DATABASE:-ntester}?charset=UTF8MB4
     depends_on:
       mysql:
         condition: service_healthy
@@ -83,7 +83,7 @@ services:
     command: celery -A celery_worker.worker.celery worker --loglevel=INFO -c 10
     environment:
       - REDIS_URI=redis://redis:6379/4
-      - MYSQL_DATABASE_URI=mysql+asyncmy://${MYSQL_USER:-admin}:${MYSQL_PASSWORD:-admin123456}@mysql:3306/${MYSQL_DATABASE:-fastapiwebadmin}?charset=UTF8MB4
+      - MYSQL_DATABASE_URI=mysql+asyncmy://${MYSQL_USER:-admin}:${MYSQL_PASSWORD:-admin123456}@mysql:3306/${MYSQL_DATABASE:-ntester}?charset=UTF8MB4
       - CELERY_BROKER_URL=redis://redis:6379/5
       - CELERY_RESULT_BACKEND=redis://redis:6379/5
     depends_on:
@@ -106,10 +106,10 @@ services:
     command: celery -A celery_worker.worker.celery beat -S celery_worker.scheduler.schedulers:DatabaseScheduler -l INFO
     environment:
       - REDIS_URI=redis://redis:6379/4
-      - MYSQL_DATABASE_URI=mysql+asyncmy://${MYSQL_USER:-admin}:${MYSQL_PASSWORD:-admin123456}@mysql:3306/${MYSQL_DATABASE:-fastapiwebadmin}?charset=UTF8MB4
+      - MYSQL_DATABASE_URI=mysql+asyncmy://${MYSQL_USER:-admin}:${MYSQL_PASSWORD:-admin123456}@mysql:3306/${MYSQL_DATABASE:-ntester}?charset=UTF8MB4
       - CELERY_BROKER_URL=redis://redis:6379/5
       - CELERY_RESULT_BACKEND=redis://redis:6379/5
-      - CELERY_BEAT_DB_URL=mysql+pymysql://${MYSQL_USER:-admin}:${MYSQL_PASSWORD:-admin123456}@mysql:3306/${MYSQL_DATABASE:-fastapiwebadmin}?charset=UTF8MB4
+      - CELERY_BEAT_DB_URL=mysql+pymysql://${MYSQL_USER:-admin}:${MYSQL_PASSWORD:-admin123456}@mysql:3306/${MYSQL_DATABASE:-ntester}?charset=UTF8MB4
     depends_on:
       - redis
       - mysql

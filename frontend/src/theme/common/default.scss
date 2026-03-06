@@ -31,9 +31,9 @@
   font-weight: 600;
   height: 24px;
   line-height: 24px;
-  background: #f7f7fc;
-  color: #333333;
-  border-left: 2px solid #409eff;
+  background: var(--el-fill-color-lighter);
+  color: var(--el-text-color-primary);
+  border-left: 2px solid var(--el-color-primary);
   margin-bottom: 5px;
   display: flex;
   justify-content: space-between;
@@ -41,9 +41,9 @@
 
 .default-card-info {
   padding: 15px 16px;
-  background-color: #ffffff;
+  background-color: var(--el-bg-color);
   border-radius: 10px;
-  border-left: 5px solid #409eff;
+  border-left: 5px solid var(--el-color-primary);
   margin-bottom: 20px;
-  box-shadow: 0px 0px 12px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--el-box-shadow-light);
 }

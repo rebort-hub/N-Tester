@@ -10,7 +10,10 @@
 			<el-row :gutter="20">
 				<!-- 显示所属项目 -->
 				<el-col :span="24" v-if="projectName">
-					<el-alert :title="`所属项目: ${projectName}`" type="info" :closable="false" style="margin-bottom: 20px" />
+					<div class="project-info">
+						<span class="project-label">所属项目：</span>
+						<span class="project-name">{{ projectName }}</span>
+					</div>
 				</el-col>
 
 				<el-col :span="24">
@@ -54,6 +57,14 @@
 				</el-col>
 
 				<el-col :span="12">
+					<el-form-item label="所属模块">
+						<el-select v-model="form.module_id" placeholder="请选择模块" clearable style="width: 100%">
+							<el-option v-for="module in moduleList" :key="module.id" :label="module.name" :value="module.id" />
+						</el-select>
+					</el-form-item>
+				</el-col>
+
+				<el-col :span="24">
 					<el-form-item label="标签">
 						<el-select v-model="form.tags" multiple placeholder="请选择或输入标签" allow-create filterable style="width: 100%">
 							<el-option label="功能测试" value="功能测试" />
@@ -100,6 +111,7 @@
 import { ref, reactive, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { createTestCase, updateTestCase, getTestCaseDetail } from '/@/api/v1/testcases';
+import { getModuleList } from '/@/api/v1/modules';
 import StepManager from './StepManager.vue';
 
 const props = defineProps({
@@ -125,6 +137,7 @@ const emit = defineEmits(['update:modelValue', 'success']);
 
 const formRef = ref();
 const loading = ref(false);
+const moduleList = ref<any[]>([]);
 
 const form = reactive({
 	title: '',
@@ -136,6 +149,7 @@ const form = reactive({
 	test_type: 'functional',
 	tags: [] as string[],
 	steps: [] as any[],
+	module_id: null as number | null,
 });
 
 const rules = {
@@ -143,6 +157,20 @@ const rules = {
 	priority: [{ required: true, message: '请选择优先级', trigger: 'change' }],
 	status: [{ required: true, message: '请选择状态', trigger: 'change' }],
 	test_type: [{ required: true, message: '请选择测试类型', trigger: 'change' }],
+};
+
+// 获取模块列表
+const getModules = async () => {
+	if (!props.projectId) return;
+	
+	try {
+		const res = await getModuleList({ project_id: props.projectId, page: 1, page_size: 100 });
+		if (res.code === 200) {
+			moduleList.value = res.data.items || [];
+		}
+	} catch (error) {
+		console.error('获取模块列表失败:', error);
+	}
 };
 
 // 获取详情
@@ -165,6 +193,7 @@ const getDetail = async () => {
 			form.status = detailData.status;
 			form.test_type = detailData.test_type;
 			form.tags = detailData.tags || [];
+			form.module_id = detailData.module_id || null;
 			// 使用扩展运算符复制数组
 			form.steps = detailData.steps ? [...detailData.steps] : [];
 		}
@@ -220,6 +249,9 @@ watch(
 	() => props.modelValue,
 	(val) => {
 		if (val) {
+			// 获取模块列表
+			getModules();
+			
 			if (props.testcaseId) {
 				getDetail();
 			} else {
@@ -233,6 +265,7 @@ watch(
 				form.test_type = 'functional';
 				form.tags = [];
 				form.steps = [];
+				form.module_id = null;
 			}
 		}
 	},
@@ -256,6 +289,27 @@ watch(
 		.el-form-item__content {
 			line-height: normal;
 		}
+	}
+}
+
+.project-info {
+	padding: 12px 16px;
+	margin-bottom: 20px;
+	background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+	border-radius: 8px;
+	box-shadow: 0 2px 8px rgba(79, 172, 254, 0.15);
+	
+	.project-label {
+		font-size: 14px;
+		color: rgba(255, 255, 255, 0.9);
+		font-weight: 500;
+	}
+	
+	.project-name {
+		font-size: 15px;
+		color: #ffffff;
+		font-weight: 600;
+		margin-left: 4px;
 	}
 }
 </style>

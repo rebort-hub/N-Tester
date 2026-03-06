@@ -3,19 +3,21 @@
 """
 
 from typing import List
+from datetime import datetime
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.testcases.crud import (
     TestCaseCRUD, TestCaseStepCRUD, VersionCRUD,
-    ProjectVersionCRUD, TestCaseVersionCRUD
+    ProjectVersionCRUD, TestCaseVersionCRUD, ModuleInfoCRUD
 )
 from app.api.v1.testcases.schema import (
     TestCaseCreateSchema, TestCaseUpdateSchema, TestCaseOutSchema, TestCaseQuerySchema,
     TestCaseStepOutSchema, VersionCreateSchema, VersionUpdateSchema, VersionOutSchema,
-    VersionQuerySchema, VersionAssociationSchema
+    VersionQuerySchema, VersionAssociationSchema,
+    ModuleInfoCreateSchema, ModuleInfoUpdateSchema, ModuleInfoOutSchema, ModuleInfoQuerySchema
 )
-from app.api.v1.testcases.model import TestCaseModel, VersionModel
+from app.api.v1.testcases.model import TestCaseModel, VersionModel, ModuleInfoModel
 from app.api.v1.projects.crud import ProjectMemberCRUD
 from app.common.response import page_response
 
@@ -88,6 +90,8 @@ class TestCaseService:
             conditions.append(TestCaseModel.test_type == query.test_type)
         if query.author_id:
             conditions.append(TestCaseModel.author_id == query.author_id)
+        if query.module_id:
+            conditions.append(TestCaseModel.module_id == query.module_id)
         
         # 如果指定了版本，需要关联查询
         if query.version_id:
@@ -211,6 +215,10 @@ class TestCaseService:
         if testcase.steps:
             print(f"[DEBUG] testcase.steps 内容: {testcase.steps}")
         
+        # 处理空标题的情况
+        if not testcase.title or testcase.title.strip() == '':
+            testcase.title = '未命名用例'
+        
         testcase_out = TestCaseOutSchema.model_validate(testcase)
         
         print(f"[DEBUG] testcase_out.steps 长度: {len(testcase_out.steps) if testcase_out.steps else 0}")
@@ -220,6 +228,10 @@ class TestCaseService:
             testcase_out.author_name = testcase.author.nickname or testcase.author.username
         if testcase.assignee:
             testcase_out.assignee_name = testcase.assignee.nickname or testcase.assignee.username
+        
+        # 设置模块名称
+        if testcase.module:
+            testcase_out.module_name = testcase.module.name
         
         # 设置步骤
         if testcase.steps:
@@ -430,3 +442,463 @@ class VersionService:
             version_out.testcase_count = len(version.test_cases)
         
         return version_out
+
+
+
+class ModuleInfoService:
+    """模块管理服务"""
+    
+    @classmethod
+    async def create_module_service(
+        cls,
+        data: ModuleInfoCreateSchema,
+        current_user_id: int,
+        db: AsyncSession
+    ) -> ModuleInfoOutSchema:
+        """创建模块"""
+        # 检查项目权限
+        await TestCaseService._check_project_member(data.project_id, current_user_id, db)
+        
+        crud = ModuleInfoCRUD(db)
+        
+        # 检查模块名称是否已存在
+        existing = await crud.get_by_name_crud(data.project_id, data.name)
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="模块名称已存在"
+            )
+        
+        # 创建模块
+        module_data = data.model_dump()
+        module_data["created_by"] = current_user_id
+        module_data["enabled_flag"] = 1
+        module = await crud.create_crud(module_data)
+        
+        # 刷新对象以确保与会话绑定
+        await db.refresh(module)
+        
+        return cls._build_module_out(module)
+    
+    @classmethod
+    async def get_module_list_service(
+        cls,
+        query: ModuleInfoQuerySchema,
+        current_user_id: int,
+        db: AsyncSession
+    ) -> dict:
+        """获取模块列表"""
+        # 检查项目权限
+        await TestCaseService._check_project_member(query.project_id, current_user_id, db)
+        
+        crud = ModuleInfoCRUD(db)
+        
+        # 获取模块列表（包含用例数量）
+        modules = await crud.get_with_testcase_count_crud(query.project_id)
+        
+        # 如果有名称过滤
+        if query.name:
+            modules = [m for m in modules if query.name in m['name']]
+        
+        # 分页
+        total = len(modules)
+        skip = (query.page - 1) * query.page_size
+        items = modules[skip:skip + query.page_size]
+        
+        # 构建输出
+        module_list = [ModuleInfoOutSchema(**m) for m in items]
+        
+        return {
+            "items": [m.model_dump() for m in module_list],
+            "total": total,
+            "page": query.page,
+            "page_size": query.page_size,
+            "total_pages": (total + query.page_size - 1) // query.page_size
+        }
+    
+    @classmethod
+    async def get_module_detail_service(
+        cls,
+        module_id: int,
+        current_user_id: int,
+        db: AsyncSession
+    ) -> ModuleInfoOutSchema:
+        """获取模块详情"""
+        crud = ModuleInfoCRUD(db)
+        module = await crud.get_by_id_crud(module_id)
+        
+        if not module or module.enabled_flag != 1:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="模块不存在"
+            )
+        
+        # 检查项目权限
+        await TestCaseService._check_project_member(module.project_id, current_user_id, db)
+        
+        return cls._build_module_out(module)
+    
+    @classmethod
+    @classmethod
+    async def update_module_service(
+        cls,
+        module_id: int,
+        data: ModuleInfoUpdateSchema,
+        current_user_id: int,
+        db: AsyncSession
+    ) -> ModuleInfoOutSchema:
+        """更新模块"""
+        crud = ModuleInfoCRUD(db)
+        module = await crud.get_by_id_crud(module_id)
+        
+        if not module or module.enabled_flag != 1:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="模块不存在"
+            )
+        
+        # 检查项目权限
+        await TestCaseService._check_project_member(module.project_id, current_user_id, db)
+        
+        # 如果更新名称，检查是否重复
+        if data.name and data.name != module.name:
+            existing = await crud.get_by_name_crud(module.project_id, data.name)
+            if existing:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="模块名称已存在"
+                )
+        
+        # 更新模块
+        update_data = data.model_dump(exclude_unset=True)
+        update_data["updated_by"] = current_user_id
+        module = await crud.update_crud(module_id, update_data)
+        
+        # 刷新对象以确保与会话绑定
+        await db.refresh(module)
+        
+        return cls._build_module_out(module)
+    
+    @classmethod
+    async def delete_module_service(
+        cls,
+        module_id: int,
+        current_user_id: int,
+        db: AsyncSession
+    ) -> None:
+        """删除模块（软删除）"""
+        crud = ModuleInfoCRUD(db)
+        module = await crud.get_by_id_crud(module_id)
+        
+        if not module or module.enabled_flag != 1:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="模块不存在"
+            )
+        
+        # 检查项目权限
+        await TestCaseService._check_project_member(module.project_id, current_user_id, db)
+        
+        # 检查是否有关联的测试用例
+        from sqlalchemy import select, func
+        stmt = select(func.count()).select_from(TestCaseModel).where(
+            TestCaseModel.module_id == module_id,
+            TestCaseModel.enabled_flag == 1
+        )
+        result = await db.execute(stmt)
+        count = result.scalar()
+        
+        if count > 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"该模块下还有 {count} 个测试用例，无法删除"
+            )
+        
+        # 软删除
+        await crud.soft_delete_crud([module_id])
+    
+    @classmethod
+    def _build_module_out(cls, module: ModuleInfoModel, testcase_count: int = 0) -> ModuleInfoOutSchema:
+        """构建模块输出"""
+        # 手动构建输出，避免触发延迟加载
+        module_dict = {
+            'id': module.id,
+            'name': module.name,
+            'project_id': module.project_id,
+            'parent_id': module.parent_id,
+            'description': module.description,
+            'sort_order': module.sort_order,
+            'testcase_count': testcase_count,
+            'creation_date': module.creation_date,
+            'created_by': module.created_by,
+            'updation_date': module.updation_date,
+            'updated_by': module.updated_by,
+            'enabled_flag': module.enabled_flag,
+        }
+        return ModuleInfoOutSchema(**module_dict)
+    
+    @classmethod
+    async def get_module_tree_service(
+        cls,
+        project_id: int,
+        current_user_id: int,
+        db: AsyncSession
+    ) -> List[dict]:
+        """获取模块树形结构"""
+        # 检查项目权限
+        await TestCaseService._check_project_member(project_id, current_user_id, db)
+        
+        crud = ModuleInfoCRUD(db)
+        
+        # 获取所有模块（包含用例数量）
+        modules = await crud.get_with_testcase_count_crud(project_id)
+        
+        # 构建树形结构
+        return cls._build_tree(modules)
+    
+    @classmethod
+    def _build_tree(cls, modules: List[dict], parent_id: int = None, level: int = 0) -> List[dict]:
+        """递归构建树形结构"""
+        tree = []
+        for module in modules:
+            if module.get('parent_id') == parent_id:
+                node = {
+                    'id': module['id'],
+                    'name': module['name'],
+                    'project_id': module['project_id'],
+                    'parent_id': module.get('parent_id'),
+                    'description': module.get('description'),
+                    'sort_order': module.get('sort_order', 0),
+                    'testcase_count': module.get('testcase_count', 0),
+                    'level': level,
+                    'children': cls._build_tree(modules, module['id'], level + 1)
+                }
+                tree.append(node)
+        
+        # 按sort_order排序
+        tree.sort(key=lambda x: x['sort_order'])
+        return tree
+    
+    @classmethod
+    async def move_module_service(
+        cls,
+        module_id: int,
+        target_parent_id: int | None,
+        current_user_id: int,
+        db: AsyncSession
+    ) -> ModuleInfoOutSchema:
+        """移动模块到新的父模块下"""
+        crud = ModuleInfoCRUD(db)
+        module = await crud.get_by_id_crud(module_id)
+        
+        if not module or module.enabled_flag != 1:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="模块不存在"
+            )
+        
+        # 检查项目权限
+        await TestCaseService._check_project_member(module.project_id, current_user_id, db)
+        
+        # 检查目标父模块是否存在且属于同一项目
+        if target_parent_id:
+            target_parent = await crud.get_by_id_crud(target_parent_id)
+            if not target_parent or target_parent.enabled_flag != 1:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="目标父模块不存在"
+                )
+            if target_parent.project_id != module.project_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="不能移动到其他项目的模块下"
+                )
+            
+            # 检查是否会形成循环引用
+            if await cls._would_create_cycle(module_id, target_parent_id, crud):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="不能移动到自己的子模块下"
+                )
+        
+        # 更新父模块
+        update_data = {
+            "parent_id": target_parent_id,
+            "updated_by": current_user_id
+        }
+        module = await crud.update_crud(module_id, update_data)
+        
+        return cls._build_module_out(module)
+    
+    @classmethod
+    async def _would_create_cycle(cls, module_id: int, target_parent_id: int, crud: ModuleInfoCRUD) -> bool:
+        """检查是否会形成循环引用"""
+        current_id = target_parent_id
+        while current_id:
+            if current_id == module_id:
+                return True
+            parent = await crud.get_by_id_crud(current_id)
+            if not parent:
+                break
+            current_id = parent.parent_id
+        return False
+    
+    @classmethod
+    async def export_modules_service(
+        cls,
+        project_id: int,
+        module_ids: List[int] | None,
+        include_testcases: bool,
+        current_user_id: int,
+        db: AsyncSession
+    ) -> dict:
+        """导出模块"""
+        # 检查项目权限
+        await TestCaseService._check_project_member(project_id, current_user_id, db)
+        
+        crud = ModuleInfoCRUD(db)
+        
+        # 获取要导出的模块
+        if module_ids:
+            modules = []
+            for module_id in module_ids:
+                module = await crud.get_by_id_crud(module_id)
+                if module and module.enabled_flag == 1 and module.project_id == project_id:
+                    modules.append(module)
+        else:
+            # 导出所有模块 - 直接使用 ORM 查询而不是字典
+            modules = await crud.get_by_project_crud(project_id)
+        
+        # 构建导出数据
+        export_data = {
+            "version": "1.0",
+            "project_id": project_id,
+            "export_time": datetime.now().isoformat(),
+            "modules": []
+        }
+        
+        for module in modules:
+            module_data = {
+                "name": module.name,
+                "description": module.description,
+                "parent_id": module.parent_id,
+                "sort_order": module.sort_order,
+            }
+            
+            # 如果包含测试用例
+            if include_testcases:
+                from sqlalchemy import select
+                stmt = select(TestCaseModel).where(
+                    TestCaseModel.module_id == module.id,
+                    TestCaseModel.enabled_flag == 1
+                )
+                result = await db.execute(stmt)
+                testcases = result.scalars().all()
+                
+                module_data["testcases"] = [
+                    {
+                        "title": tc.title,
+                        "description": tc.description,
+                        "preconditions": tc.preconditions,
+                        "expected_result": tc.expected_result,
+                        "priority": tc.priority,
+                        "test_type": tc.test_type,
+                        "tags": tc.tags
+                    }
+                    for tc in testcases
+                ]
+            
+            export_data["modules"].append(module_data)
+        
+        return export_data
+    
+    @classmethod
+    async def import_modules_service(
+        cls,
+        project_id: int,
+        modules_data: List[dict],
+        override: bool,
+        current_user_id: int,
+        db: AsyncSession
+    ) -> dict:
+        """导入模块"""
+        # 检查项目权限
+        await TestCaseService._check_project_member(project_id, current_user_id, db)
+        
+        crud = ModuleInfoCRUD(db)
+        
+        imported_count = 0
+        skipped_count = 0
+        error_count = 0
+        errors = []
+        
+        # ID映射表（用于处理父子关系）
+        id_mapping = {}
+        
+        for module_data in modules_data:
+            try:
+                module_name = module_data.get("name")
+                if not module_name:
+                    error_count += 1
+                    errors.append("模块名称不能为空")
+                    continue
+                
+                # 检查是否已存在
+                existing = await crud.get_by_name_crud(project_id, module_name)
+                
+                if existing and not override:
+                    skipped_count += 1
+                    continue
+                
+                # 处理父模块ID映射
+                old_parent_id = module_data.get("parent_id")
+                new_parent_id = id_mapping.get(old_parent_id) if old_parent_id else None
+                
+                # 准备数据
+                create_data = {
+                    "name": module_name,
+                    "description": module_data.get("description"),
+                    "project_id": project_id,
+                    "parent_id": new_parent_id,
+                    "sort_order": module_data.get("sort_order", 0),
+                    "created_by": current_user_id,
+                    "enabled_flag": 1
+                }
+                
+                if existing and override:
+                    # 更新现有模块
+                    update_data = {k: v for k, v in create_data.items() if k not in ["project_id", "created_by"]}
+                    update_data["updated_by"] = current_user_id
+                    module = await crud.update_crud(existing.id, update_data)
+                    id_mapping[old_parent_id] = module.id if old_parent_id else None
+                else:
+                    # 创建新模块
+                    module = await crud.create_crud(create_data)
+                    id_mapping[module_data.get("id")] = module.id
+                
+                # 如果包含测试用例数据
+                if "testcases" in module_data:
+                    testcase_crud = TestCaseCRUD(db)
+                    for tc_data in module_data["testcases"]:
+                        tc_create_data = {
+                            **tc_data,
+                            "project_id": project_id,
+                            "module_id": module.id,
+                            "author_id": current_user_id,
+                            "created_by": current_user_id,
+                            "enabled_flag": 1
+                        }
+                        await testcase_crud.create_crud(tc_create_data)
+                
+                imported_count += 1
+                
+            except Exception as e:
+                error_count += 1
+                errors.append(f"导入模块 '{module_data.get('name', 'unknown')}' 失败: {str(e)}")
+        
+        return {
+            "imported_count": imported_count,
+            "skipped_count": skipped_count,
+            "error_count": error_count,
+            "errors": errors
+        }

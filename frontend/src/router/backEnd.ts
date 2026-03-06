@@ -48,6 +48,10 @@ export async function initBackEndControlRoutes() {
 	// if (res.data.length <= 0) return Promise.resolve(true);
 	// 存储接口原始路由（未处理component），根据需求选择使用
 	await useRequestOldRoutes().setRequestOldRoutes(JSON.parse(JSON.stringify(menuData)));
+	
+	// 清空动态路由的children，避免与静态路由冲突
+	dynamicRoutes[0].children = [];
+	
 	// 处理路由（component），替换 dynamicRoutes（/@/router/route）第一个顶级 children 的路由
 	dynamicRoutes[0].children = await backEndComponent(menuData);
 	
@@ -110,8 +114,26 @@ export function setFilterRouteEnd() {
  * @link 参考：https://next.router.vuejs.org/zh/api/#addroute
  */
 export async function setAddRoute() {
-	await setFilterRouteEnd().forEach((route: RouteRecordRaw) => {
-		router.addRoute(route);
+	const routes = setFilterRouteEnd();
+	
+	// 添加路由
+	routes.forEach((route: RouteRecordRaw) => {
+		try {
+			router.addRoute(route);
+			console.log(`✅ [Router] 成功添加路由: ${route.name} -> ${route.path}`);
+			
+			// 特别检查UI自动化路由
+			if (route.path?.includes('ui-automation')) {
+				console.log(`🎯 [Router] UI自动化路由详情:`, {
+					name: route.name,
+					path: route.path,
+					component: route.component ? 'Found' : 'Missing',
+					meta: route.meta
+				});
+			}
+		} catch (error) {
+			console.error(`❌ [Router] 添加路由失败: ${route.name} -> ${route.path}`, error);
+		}
 	});
 }
 
@@ -141,11 +163,56 @@ export async function setBackEndControlRefreshRoutes() {
  */
 export function backEndComponent(routes: any) {
 	if (!routes) return;
-	return routes.map((item: any) => {
-		if (item.component) item.component = dynamicImport(dynamicViewsModules, item.component);
-		item.children && backEndComponent(item.children);
+	
+	// 用于跟踪已使用的路由名称
+	const usedNames = new Set<string>();
+	
+	const processRoute = (item: any, parentPath = '', level = 0) => {
+		if (item.component) {
+			item.component = dynamicImport(dynamicViewsModules, item.component);
+		}
+		
+		// 生成唯一的路由名称
+		if (item.path) {
+			// 使用菜单ID作为路由名称，确保唯一性
+			let routeName = `menu-${item.id || Math.random().toString(36).substr(2, 9)}`;
+			
+			// 如果没有ID，从路径生成
+			if (!item.id) {
+				routeName = item.path
+					.replace(/^\//, '') // 移除开头的斜杠
+					.replace(/\//g, '-') // 将斜杠替换为连字符
+					.replace(/[^a-zA-Z0-9-]/g, '') // 移除特殊字符
+					.toLowerCase();
+				
+				if (!routeName) {
+					routeName = `route-${level}-${Math.random().toString(36).substr(2, 9)}`;
+				}
+			}
+			
+			// 确保名称唯一
+			let uniqueName = routeName;
+			let counter = 1;
+			while (usedNames.has(uniqueName)) {
+				uniqueName = `${routeName}-${counter}`;
+				counter++;
+			}
+			
+			item.name = uniqueName;
+			usedNames.add(uniqueName);
+			
+			console.log(`🏷️ [Router] 生成路由名称: ${item.path} -> ${uniqueName} (ID: ${item.id})`);
+		}
+		
+		// 递归处理子路由
+		if (item.children && Array.isArray(item.children)) {
+			item.children.forEach((child: any) => processRoute(child, item.path, level + 1));
+		}
+		
 		return item;
-	});
+	};
+	
+	return routes.map((item: any) => processRoute(item));
 }
 
 /**
@@ -156,15 +223,56 @@ export function backEndComponent(routes: any) {
  */
 export function dynamicImport(dynamicViewsModules: Record<string, Function>, component: string) {
 	const keys = Object.keys(dynamicViewsModules);
+	
+	// 调试日志
+	console.log(`🔍 [Router] 查找组件: ${component}`);
+	console.log(`📁 [Router] 可用模块数量: ${keys.length}`);
+	
+	// 标准化组件路径
+	const normalizedComponent = component.replace(/^\//, '').replace(/\.vue$/, '');
+	
 	const matchKeys = keys.filter((key) => {
-		const k = key.replace(/..\/views|../, '');
-		return k.startsWith(`${component}`) || k.startsWith(`/${component}`);
+		// 处理路径：移除 ../views 前缀，保留完整路径
+		const k = key.replace(/^\.\.\/views\//, '').replace(/\.vue$/, '');
+		
+		// 多种匹配策略
+		const match1 = k === normalizedComponent;
+		const match2 = k === `${normalizedComponent}/index`;
+		const match3 = k.endsWith(`/${normalizedComponent}`);
+		const match4 = k.endsWith(`/${normalizedComponent}/index`);
+		
+		const isMatch = match1 || match2 || match3 || match4;
+		
+		if (isMatch) {
+			console.log(`✅ [Router] 匹配成功: ${key} -> ${k} (组件: ${normalizedComponent})`);
+		}
+		
+		return isMatch;
 	});
-	if (matchKeys?.length === 1) {
+	
+	console.log(`🎯 [Router] 找到 ${matchKeys.length} 个匹配项`);
+	
+	if (matchKeys?.length >= 1) {
 		const matchKey = matchKeys[0];
+		console.log(`✅ [Router] 使用组件: ${matchKey}`);
 		return dynamicViewsModules[matchKey];
 	}
-	if (matchKeys?.length > 1) {
-		return false;
+	
+	// 如果没有找到，尝试更宽松的匹配
+	console.warn(`❌ [Router] 未找到精确匹配，尝试模糊匹配...`);
+	
+	const fuzzyMatchKeys = keys.filter((key) => {
+		const k = key.replace(/^\.\.\/views\//, '').replace(/\.vue$/, '');
+		return k.includes(normalizedComponent) || normalizedComponent.includes(k);
+	});
+	
+	if (fuzzyMatchKeys.length > 0) {
+		console.log(`🔍 [Router] 模糊匹配成功: ${fuzzyMatchKeys[0]}`);
+		return dynamicViewsModules[fuzzyMatchKeys[0]];
 	}
+	
+	console.error(`❌ [Router] 完全无法匹配组件: ${component}`);
+	console.error(`📋 [Router] 可用的路径:`, keys.slice(0, 10).map(k => k.replace(/^\.\.\/views\//, '')));
+	
+	return undefined;
 }

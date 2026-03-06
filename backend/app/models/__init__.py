@@ -11,6 +11,10 @@ if __name__ != "__main__":
         from app.models.system_models import *
         from app.models.rbac_models import *
         from app.models.celery_beat_models import *
+        # AI智能化模块的模型在独立模块中管理
+        from app.api.v1.ai_intelligence.model import *
+        # 统一通知系统模型
+        from app.api.v1.notifications.model import *
     except ImportError:
         # 如果导入失败（比如在 Alembic 环境中缺少某些依赖），忽略
         pass

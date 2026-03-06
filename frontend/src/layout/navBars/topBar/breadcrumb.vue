@@ -98,8 +98,13 @@ const initRouteSplit = (path: string) => {
   state.routeSplitIndex = 1;
   getBreadcrumbList(routesList.value);
   if (route.name === 'home' || (route.name === 'notFound' && state.breadcrumbList.length > 1)) state.breadcrumbList.shift();
-  if (state.breadcrumbList.length > 0)
-    state.breadcrumbList[state.breadcrumbList.length - 1].meta.tagsViewName = other.setTagsViewNameI18n(route);
+  if (state.breadcrumbList.length > 0) {
+    const lastBreadcrumb = state.breadcrumbList[state.breadcrumbList.length - 1];
+    // 确保 meta 属性存在
+    if (lastBreadcrumb && lastBreadcrumb.meta) {
+      lastBreadcrumb.meta.tagsViewName = other.setTagsViewNameI18n(route);
+    }
+  }
 };
 // 页面加载时
 onMounted(() => {

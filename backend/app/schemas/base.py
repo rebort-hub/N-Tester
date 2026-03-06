@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 # @author: rebort
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, ConfigDict
 
 
 class BaseSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
     def model_dump(self, *args, **kwargs):
         if "exclude_none" not in kwargs:
             kwargs["exclude_none"] = True

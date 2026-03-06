@@ -1,20 +1,22 @@
 {
-	"name": "fastapiwebadmin-element-admin",
+	"name": "N-Tester",
 	"version": "2.0.1",
-	"description": "纯洁开发平台",
+	"description": "N-Tester平台",
 	"author": "Rebort",
 	"license": "MIT",
 	"scripts": {
-		"dev": "vite --force",
-		"build": "vite build",
+		"dev": "node start-dev.js",
+		"dev:original": "vite --force",
+		"build": "cross-env SASS_SILENCE_DEPRECATIONS=legacy-js-api,import vite build",
 		"lint-fix": "eslint --fix --ext .js --ext .jsx --ext .vue src/"
 	},
 	"dependencies": {
 		"@element-plus/icons-vue": "^2.0.10",
 		"@iconify/vue": "^4.1.2",
 		"axios": "^1.2.1",
+		"dayjs": "^1.11.19",
 		"dompurify": "^3.3.1",
-		"echarts": "^5.4.1",
+		"echarts": "^5.6.0",
 		"element-plus": "^2.7.4",
 		"highlight.js": "^11.11.1",
 		"js-cookie": "^3.0.1",
@@ -40,6 +42,7 @@
 		"@vitejs/plugin-vue": "5.0.4",
 		"@vue/compiler-sfc": "^3.2.45",
 		"cropperjs": "^1.5.13",
+		"cross-env": "^10.1.0",
 		"eslint": "8.22.0",
 		"eslint-plugin-vue": "^9.8.0",
 		"monaco-editor": "^0.34.1",
@@ -61,7 +64,7 @@
 		"not dead"
 	],
 	"bugs": {
-		"url": "https://github.com/rebort-hub/fastapiwebadminunner/issues"
+		"url": "https://github.com/rebort-hub/N-Tester/issues"
 	},
 	"engines": {
 		"node": ">=16.0.0",
@@ -79,6 +82,6 @@
 	],
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/rebort-hub/fastapiwebadmin.git"
+		"url": "https://github.com/rebort-hub/N-Tester.git"
 	}
 }

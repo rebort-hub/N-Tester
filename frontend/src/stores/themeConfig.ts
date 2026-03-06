@@ -2,7 +2,7 @@ import {defineStore} from 'pinia';
 
 /**
  * 布局配置
- * 2020.05.28 by lyt 优化。开发时配置不生效问题
+ * 2025.12.28 by cj 优化。开发时配置不生效问题
  * 修改配置时：
  * 1、需要每次都清理 `window.localStorage` 浏览器永久缓存
  * 2、或者点击布局配置最底部 `一键恢复默认` 按钮即可看到效果
@@ -17,7 +17,7 @@ export const useThemeConfig = defineStore('themeConfig', {
 			 * 全局主题
 			 */
 			// 默认 primary 主题颜色
-			primary: '#409eff',
+			primary: '#110debff',
 			// 是否开启深色模式
 			isIsDark: false,
 
@@ -47,7 +47,7 @@ export const useThemeConfig = defineStore('themeConfig', {
 			 * 分栏设置
 			 */
 			// 默认分栏菜单背景颜色
-			columnsMenuBar: '#3a3f4d',
+			columnsMenuBar: '#0b0c0fff',
 			// 默认分栏菜单字体颜色
 			columnsMenuBarColor: '#e6e6e6',
 			// 是否开启分栏菜单背景颜色渐变
@@ -87,7 +87,7 @@ export const useThemeConfig = defineStore('themeConfig', {
 			// 是否开启 Breadcrumb 图标
 			isBreadcrumbIcon: false,
 			// 是否开启 Tagsview 图标
-			isTagsviewIcon: false,
+			isTagsviewIcon: true,
 			// 是否开启 TagsView 缓存
 			isCacheTagsView: false,
 			// 是否开启 TagsView 拖拽
@@ -95,15 +95,15 @@ export const useThemeConfig = defineStore('themeConfig', {
 			// 是否开启 TagsView 共用
 			isShareTagsView: true,
 			// 是否开启 Footer 底部版权信息
-			isFooter: false,
+			isFooter: true,
 			// 是否开启灰色模式
 			isGrayscale: false,
 			// 是否开启色弱模式
 			isInvert: false,
 			// 是否开启水印
-			isWartermark: false,
+			isWartermark: true,
 			// 水印文案
-			wartermarkText: 'admin',
+			wartermarkText: 'N-Tester平台',
 
 			/**
 			 * 其它设置
@@ -136,9 +136,9 @@ export const useThemeConfig = defineStore('themeConfig', {
 			 * 全局网站标题 / 副标题
 			 */
 			// 网站主标题（菜单导航、浏览器当前网页标题）
-			globalTitle: 'FastApiWebAdmin',
+			globalTitle: 'N-Tester',
 			// 网站副标题（登录页顶部文字）
-			globalViceTitle: 'FastApiWebAdmin',
+			globalViceTitle: 'N-Tester',
 			// 网站副标题（登录页顶部文字）
 			globalViceTitleMsg: '',
 			// 默认初始语言，可选值"<zh-cn|en|zh-tw>"，默认 zh-cn
