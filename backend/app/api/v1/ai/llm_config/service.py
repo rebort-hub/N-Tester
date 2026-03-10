@@ -3,6 +3,7 @@
 LLM 配置服务
 """
 import time
+import logging
 from typing import List, Optional, Dict, Any
 from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,6 +15,8 @@ from app.api.v1.ai.llm_config.schema import (
     LLMConfigUpdateSchema,
     LLMConfigTestSchema
 )
+
+logger = logging.getLogger(__name__)
 
 
 class LLMConfigService:
@@ -120,6 +123,13 @@ class LLMConfigService:
         update_data = data.model_dump(exclude_unset=True)
         update_data['updated_by'] = user_id
         
+        # 检查API Key是否是脱敏值（包含****），如果是则保留数据库中的原值
+        if 'api_key' in update_data and update_data['api_key'] and '****' in update_data['api_key']:
+            logger.warning(f"检测到脱敏的API Key: {update_data['api_key']}, 将保留数据库中的原值")
+            # 保留数据库中的原值
+            update_data['api_key'] = config.api_key
+            logger.info(f"保留原API Key: {config.api_key[:10]}...")
+        
         stmt = (
             update(LLMConfigModel)
             .where(LLMConfigModel.id == config_id)
@@ -134,21 +144,52 @@ class LLMConfigService:
     
     @classmethod
     async def delete(cls, db: AsyncSession, config_id: int) -> bool:
-        """删除配置（软删除）"""
+        """删除配置（硬删除）"""
         config = await cls.get_by_id(db, config_id)
         if not config:
             raise HTTPException(status_code=404, detail="配置不存在")
         
-        # 软删除
+        # 检查是否有AI模型配置在使用此LLM配置
+        try:
+            from sqlalchemy import select
+            # 尝试导入AI模型配置模型
+            try:
+                from app.api.v1.ai_intelligence.model import AIModelConfigModel
+                
+                # 检查是否有AI模型配置关联此LLM配置
+                check_stmt = select(AIModelConfigModel).where(
+                    AIModelConfigModel.llm_config_id == config_id,
+                    AIModelConfigModel.enabled_flag == 1
+                )
+                check_result = await db.execute(check_stmt)
+                related_configs = check_result.scalars().all()
+                
+                if related_configs:
+                    config_names = [c.name for c in related_configs]
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"无法删除，以下AI模型配置正在使用此LLM配置: {', '.join(config_names)}"
+                    )
+            except ImportError:
+                # 如果AI模型配置模型不存在，跳过检查
+                pass
+        except HTTPException:
+            # 重新抛出HTTP异常
+            raise
+        except Exception as e:
+            # 其他异常记录日志但不阻止删除
+            logger.warning(f"检查AI模型配置关联时出错: {e}")
+        
+        # 硬删除
         stmt = (
-            update(LLMConfigModel)
+            delete(LLMConfigModel)
             .where(LLMConfigModel.id == config_id)
-            .values(enabled_flag=0)
         )
         
         await db.execute(stmt)
         await db.commit()
         
+        logger.info(f"硬删除LLM配置成功: ID={config_id}, Name={config.config_name}")
         return True
     
     @classmethod

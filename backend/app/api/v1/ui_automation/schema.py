@@ -315,10 +315,10 @@ class UITestSuiteOutSchema(TimestampSchema):
 class UIExecutionScreenshotSchema(BaseModel):
     """执行截图数据"""
     step_number: int
-    step_description: str
-    error_message: str
+    step_description: Optional[str] = ''  # 兼容旧数据
+    error_message: Optional[str] = ''     # 兼容旧数据
     screenshot: str  # Base64 encoded image
-    timestamp: str
+    timestamp: Optional[str] = ''         # 兼容旧数据
 
 
 class UIExecutionOutSchema(BaseModel):

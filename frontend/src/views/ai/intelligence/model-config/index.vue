@@ -306,8 +306,19 @@ const handleDelete = (row: any) => {
       await aiModelConfigApi.delete(row.id!)
       ElMessage.success('删除成功')
       getList()
-    } catch (error) {
-      ElMessage.error('删除失败')
+    } catch (error: any) {
+      // 显示后端返回的具体错误信息
+      const errorMessage = error.response?.data?.message || error.message || '删除失败'
+      
+      // 如果是关联错误，使用警告类型的消息框
+      if (errorMessage.includes('无法删除') || errorMessage.includes('正在使用')) {
+        ElMessageBox.alert(errorMessage, '无法删除', {
+          confirmButtonText: '我知道了',
+          type: 'warning'
+        })
+      } else {
+        ElMessage.error(errorMessage)
+      }
     }
   })
 }
@@ -379,7 +390,7 @@ const handleSubmit = async () => {
         name: selectedConfig.config_name,
         model_type: selectedConfig.provider,
         role: formData.role,
-        api_key: selectedConfig.api_key,
+        // 不传递api_key，让后端根据llm_config_id自动获取明文API密钥
         base_url: selectedConfig.base_url || '',
         model_name: selectedConfig.model_name,
         max_tokens: selectedConfig.max_tokens,

@@ -5,7 +5,7 @@
       <div class="header-content">
         <div class="breadcrumb">
           <el-breadcrumb separator="/">
-            <el-breadcrumb-item :to="{ path: '/testing/ui-automation' }">UI自动化</el-breadcrumb-item>
+            <el-breadcrumb-item :to="{ path: '/testing/ui-automation/index' }">UI自动化</el-breadcrumb-item>
             <el-breadcrumb-item>{{ projectInfo.name || '项目管理' }}</el-breadcrumb-item>
           </el-breadcrumb>
         </div>
@@ -123,7 +123,7 @@
   <div v-else class="error-container">
     <el-result icon="error" title="无效的项目ID" sub-title="请从UI自动化列表页面进入">
       <template #extra>
-        <el-button type="primary" @click="router.push('/testing/ui-automation')">返回列表</el-button>
+        <el-button type="primary" @click="router.push('/testing/ui-automation/index')">返回列表</el-button>
       </template>
     </el-result>
   </div>
@@ -150,7 +150,7 @@ const projectId = ref(Number(route.query.id))
 // 验证projectId是否有效
 if (!projectId.value || isNaN(projectId.value)) {
   ElMessage.error('无效的项目ID')
-  router.push('/testing/ui-automation')
+  router.push({ path: '/testing/ui-automation/index' })
 }
 
 const projectInfo = ref<any>({})
@@ -326,7 +326,7 @@ const handleViewReport = () => {
 
 // 返回
 const handleBack = () => {
-  router.push('/testing/ui-automation')
+  router.push({ path: '/testing/ui-automation/index' })
 }
 
 // 初始化

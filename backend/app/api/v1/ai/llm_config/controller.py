@@ -29,16 +29,24 @@ async def get_llm_configs(
     """获取 LLM 配置列表"""
     configs = await LLMConfigService.get_list(db, provider, is_active)
     
-    # 转换为输出格式
+    # 转换为输出格式（脱敏处理）
     result = []
     for config in configs:
+        # 脱敏处理API密钥
+        masked_api_key = ""
+        if config.api_key:
+            if len(config.api_key) > 12:
+                masked_api_key = config.api_key[:8] + "****" + config.api_key[-4:]
+            else:
+                masked_api_key = "****" + config.api_key[-4:] if len(config.api_key) > 4 else "****"
+        
         config_dict = {
             "id": config.id,
             "config_name": config.config_name,
             "name": config.name,
             "provider": config.provider,
             "model_name": config.model_name,
-            "api_key": config.api_key,
+            "api_key": masked_api_key,  # 返回脱敏值
             "base_url": config.base_url,
             "system_prompt": config.system_prompt,
             "temperature": config.temperature,
@@ -65,13 +73,21 @@ async def get_default_config(db: AsyncSession = Depends(get_db)):
     if not config:
         return error_response(message="未找到默认配置")
     
+    # 脱敏处理API密钥
+    masked_api_key = ""
+    if config.api_key:
+        if len(config.api_key) > 12:
+            masked_api_key = config.api_key[:8] + "****" + config.api_key[-4:]
+        else:
+            masked_api_key = "****" + config.api_key[-4:] if len(config.api_key) > 4 else "****"
+    
     config_dict = {
         "id": config.id,
         "config_name": config.config_name,
         "name": config.name,
         "provider": config.provider,
         "model_name": config.model_name,
-        "api_key": config.api_key,
+        "api_key": masked_api_key,  # 返回脱敏值
         "base_url": config.base_url,
         "system_prompt": config.system_prompt,
         "temperature": config.temperature,
@@ -100,13 +116,21 @@ async def get_llm_config(
     if not config:
         return error_response(message="配置不存在")
     
+    # 脱敏处理API密钥
+    masked_api_key = ""
+    if config.api_key:
+        if len(config.api_key) > 12:
+            masked_api_key = config.api_key[:8] + "****" + config.api_key[-4:]
+        else:
+            masked_api_key = "****" + config.api_key[-4:] if len(config.api_key) > 4 else "****"
+    
     config_dict = {
         "id": config.id,
         "config_name": config.config_name,
         "name": config.name,
         "provider": config.provider,
         "model_name": config.model_name,
-        "api_key": config.api_key,
+        "api_key": masked_api_key,  # 返回脱敏值
         "base_url": config.base_url,
         "system_prompt": config.system_prompt,
         "temperature": config.temperature,
@@ -132,13 +156,21 @@ async def create_llm_config(
     """创建 LLM 配置"""
     config = await LLMConfigService.create(db, data, user_id=1)  # TODO: 从当前用户获取
     
+    # 脱敏处理API密钥
+    masked_api_key = ""
+    if config.api_key:
+        if len(config.api_key) > 12:
+            masked_api_key = config.api_key[:8] + "****" + config.api_key[-4:]
+        else:
+            masked_api_key = "****" + config.api_key[-4:] if len(config.api_key) > 4 else "****"
+    
     config_dict = {
         "id": config.id,
         "config_name": config.config_name,
         "name": config.name,
         "provider": config.provider,
         "model_name": config.model_name,
-        "api_key": config.api_key,
+        "api_key": masked_api_key,  # 返回脱敏值
         "base_url": config.base_url,
         "system_prompt": config.system_prompt,
         "temperature": config.temperature,
@@ -165,13 +197,21 @@ async def update_llm_config(
     """更新 LLM 配置"""
     config = await LLMConfigService.update(db, config_id, data, user_id=1)  # TODO: 从当前用户获取
     
+    # 脱敏处理API密钥
+    masked_api_key = ""
+    if config.api_key:
+        if len(config.api_key) > 12:
+            masked_api_key = config.api_key[:8] + "****" + config.api_key[-4:]
+        else:
+            masked_api_key = "****" + config.api_key[-4:] if len(config.api_key) > 4 else "****"
+    
     config_dict = {
         "id": config.id,
         "config_name": config.config_name,
         "name": config.name,
         "provider": config.provider,
         "model_name": config.model_name,
-        "api_key": config.api_key,
+        "api_key": masked_api_key,  # 返回脱敏值
         "base_url": config.base_url,
         "system_prompt": config.system_prompt,
         "temperature": config.temperature,

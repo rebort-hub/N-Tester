@@ -231,6 +231,11 @@ import {
 } from '@element-plus/icons-vue'
 import { uiBrowserApi } from '/@/api/v1/ui_automation'
 
+// 定义组件名称
+defineOptions({
+  name: 'BrowserCheck'
+})
+
 interface Browser {
   browser_type: string
   is_available: boolean

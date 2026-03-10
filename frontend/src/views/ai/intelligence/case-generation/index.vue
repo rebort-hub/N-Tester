@@ -263,7 +263,7 @@
             <el-radio label="batch">批量输出</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item label="Writer模型配置">
+        <el-form-item label="Writer模型配置" prop="writer_model_config_id">
           <el-select v-model="createForm.writer_model_config_id" placeholder="请选择" style="width: 100%">
             <el-option
               v-for="config in writerModelConfigs"
@@ -273,7 +273,7 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="Reviewer模型配置">
+        <el-form-item label="Reviewer模型配置" prop="reviewer_model_config_id">
           <el-select v-model="createForm.reviewer_model_config_id" placeholder="请选择" style="width: 100%">
             <el-option
               v-for="config in reviewerModelConfigs"
@@ -283,7 +283,7 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="Writer提示词">
+        <el-form-item label="Writer提示词" prop="writer_prompt_config_id">
           <el-select v-model="createForm.writer_prompt_config_id" placeholder="请选择" style="width: 100%">
             <el-option
               v-for="config in writerPromptConfigs"
@@ -293,7 +293,7 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="Reviewer提示词">
+        <el-form-item label="Reviewer提示词" prop="reviewer_prompt_config_id">
           <el-select v-model="createForm.reviewer_prompt_config_id" placeholder="请选择" style="width: 100%">
             <el-option
               v-for="config in reviewerPromptConfigs"
@@ -574,7 +574,11 @@ const createForm = reactive<GenerationTaskForm>({
 
 const createRules = {
   title: [{ required: true, message: '请输入任务标题', trigger: 'blur' }],
-  requirement_text: [{ required: true, message: '请输入需求描述', trigger: 'blur' }]
+  requirement_text: [{ required: true, message: '请输入需求描述', trigger: 'blur' }],
+  writer_model_config_id: [{ required: true, message: '请选择Writer模型配置', trigger: 'change' }],
+  reviewer_model_config_id: [{ required: true, message: '请选择Reviewer模型配置', trigger: 'change' }],
+  writer_prompt_config_id: [{ required: true, message: '请选择Writer提示词', trigger: 'change' }],
+  reviewer_prompt_config_id: [{ required: true, message: '请选择Reviewer提示词', trigger: 'change' }]
 }
 
 // 轮询定时器

@@ -5,7 +5,7 @@
       <div class="header-content">
         <div class="breadcrumb">
           <el-breadcrumb separator="/">
-            <el-breadcrumb-item :to="{ path: '/testing/ui-automation' }">UI自动化</el-breadcrumb-item>
+            <el-breadcrumb-item :to="{ path: '/testing/ui-automation/index' }">UI自动化</el-breadcrumb-item>
             <el-breadcrumb-item>测试报告</el-breadcrumb-item>
           </el-breadcrumb>
         </div>
@@ -361,6 +361,11 @@ import {
 } from '@element-plus/icons-vue'
 import { uiExecutionApi, uiProjectApi } from '/@/api/v1/ui_automation'
 import { formatDateTime } from '/@/utils/formatTime'
+
+// 定义组件名称
+defineOptions({
+  name: 'UIAutomationReport'
+})
 
 const router = useRouter()
 const route = useRoute()
@@ -751,7 +756,7 @@ const handleExport = async (row: any) => {
 
 // 返回
 const handleBack = () => {
-  router.push('/testing/ui-automation')
+  router.push({ path: '/testing/ui-automation/index' })
 }
 
 // 初始化

@@ -268,6 +268,7 @@ class AIModelConfigService:
                 logger.info(f"自动同步LLM配置（ID: {llm_config.id}）的参数到AI模型配置")
                 
                 # 同步关键参数（如果前端没有提供，则使用LLM配置的值）
+                # 确保API Key以明文形式保存
                 if not config_dict.get('api_key'):
                     config_dict['api_key'] = llm_config.api_key
                     logger.info(f"同步API Key: {llm_config.api_key[:10]}...")
@@ -309,6 +310,9 @@ class AIModelConfigService:
             if not config_dict.get('top_p'):
                 config_dict['top_p'] = 0.9
         
+        # 确保API Key以明文形式保存到数据库
+        logger.info(f"准备保存AI模型配置，API Key: {config_dict.get('api_key', 'None')[:10]}...")
+        
         return await config_crud.create_crud(data=config_dict)
     
     @staticmethod
@@ -349,8 +353,15 @@ class AIModelConfigService:
             # 获取当前配置
             current_config = await config_crud.get_by_id_crud(config_id)
             if current_config and current_config.api_key:
-                update_dict['api_key'] = current_config.api_key
-                logger.info(f"保留原API Key: {current_config.api_key[:10]}...")
+                # 检查数据库中的API Key是否也是脱敏值
+                if '****' in current_config.api_key:
+                    logger.error(f"数据库中的API Key也是脱敏值: {current_config.api_key}, 无法恢复明文")
+                    # 删除这个字段，避免更新脱敏值
+                    del update_dict['api_key']
+                    logger.warning("跳过API Key更新，请重新输入完整的API Key")
+                else:
+                    update_dict['api_key'] = current_config.api_key
+                    logger.info(f"保留原API Key: {current_config.api_key[:10]}...")
             else:
                 # 如果数据库中也没有，则删除这个字段，避免更新
                 del update_dict['api_key']
@@ -371,6 +382,7 @@ class AIModelConfigService:
                 logger.info(f"自动同步LLM配置（ID: {llm_config.id}）的参数到AI模型配置")
                 
                 # 同步关键参数（更新时总是同步，确保一致性）
+                # 确保API Key以明文形式保存
                 update_dict['api_key'] = llm_config.api_key
                 update_dict['base_url'] = llm_config.base_url
                 update_dict['model_name'] = llm_config.model_name
@@ -388,20 +400,54 @@ class AIModelConfigService:
     
     @staticmethod
     async def delete_config(db: AsyncSession, config_id: int) -> bool:
-        """删除AI模型配置"""
+        """删除AI模型配置（硬删除）"""
         config_crud = AIModelConfigCRUD(db)
         try:
             # 先检查配置是否存在
             config = await config_crud.get_by_id_crud(config_id)
-            if not config or config.enabled_flag == 0:
+            if not config:
                 return False
             
-            # 执行软删除
-            await config_crud.soft_delete_crud([config_id])
+            # 检查是否有生成任务在使用此配置
+            try:
+                from sqlalchemy import select, or_
+                from .model import TestCaseGenerationTaskModel
+                
+                check_stmt = select(TestCaseGenerationTaskModel).where(
+                    or_(
+                        TestCaseGenerationTaskModel.writer_model_config_id == config_id,
+                        TestCaseGenerationTaskModel.reviewer_model_config_id == config_id
+                    ),
+                    TestCaseGenerationTaskModel.enabled_flag == 1
+                )
+                check_result = await db.execute(check_stmt)
+                related_tasks = check_result.scalars().all()
+                
+                if related_tasks:
+                    task_titles = [t.title for t in related_tasks[:3]]  # 只显示前3个
+                    more_text = f" 等{len(related_tasks)}个任务" if len(related_tasks) > 3 else ""
+                    raise Exception(f"无法删除，以下生成任务正在使用此配置: {', '.join(task_titles)}{more_text}")
+            except Exception as check_error:
+                if "无法删除" in str(check_error):
+                    # 重新抛出业务异常
+                    raise check_error
+                else:
+                    # 其他异常记录日志但不阻止删除
+                    logger.warning(f"检查生成任务关联时出错: {check_error}")
+            
+            # 执行硬删除
+            from sqlalchemy import delete
+            from .model import AIModelConfigModel
+            
+            stmt = delete(AIModelConfigModel).where(AIModelConfigModel.id == config_id)
+            await db.execute(stmt)
+            await db.commit()
+            
+            logger.info(f"硬删除AI模型配置成功: ID={config_id}, Name={config.name}")
             return True
         except Exception as e:
             logger.error(f"删除AI模型配置失败: {e}")
-            return False
+            raise Exception(str(e))
 
 
 class PromptConfigService:

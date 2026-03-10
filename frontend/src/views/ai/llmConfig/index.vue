@@ -521,7 +521,18 @@ const handleDelete = async (row: LLMConfigData) => {
     }
   } catch (error: any) {
     if (error !== 'cancel') {
-      ElMessage.error(error.message || '删除失败')
+      // 显示后端返回的具体错误信息
+      const errorMessage = error.response?.data?.message || error.message || '删除失败'
+      
+      // 如果是关联错误，使用警告类型的消息框
+      if (errorMessage.includes('无法删除') || errorMessage.includes('正在使用')) {
+        ElMessageBox.alert(errorMessage, '无法删除', {
+          confirmButtonText: '我知道了',
+          type: 'warning'
+        })
+      } else {
+        ElMessage.error(errorMessage)
+      }
     }
   }
 }

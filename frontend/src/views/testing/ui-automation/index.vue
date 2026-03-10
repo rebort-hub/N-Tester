@@ -176,6 +176,11 @@ import { useRouter } from 'vue-router'
 import { formatDateTime } from '/@/utils/formatTime'
 import BrowserCheck from './browser-check.vue'
 
+// 定义组件名称
+defineOptions({
+  name: 'UIAutomationIndex'
+})
+
 const router = useRouter()
 
 // Tab 切换
@@ -460,6 +465,7 @@ const handleCurrentChange = () => {
 
 // 初始化
 onMounted(async () => {
+  console.log('[UI Automation Index] 组件挂载')
   await loadProjectList()
   // 只有在有项目的情况下才加载数据
   if (searchForm.project_id) {

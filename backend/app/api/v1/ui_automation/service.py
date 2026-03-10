@@ -1082,6 +1082,7 @@ class UIExecutionService:
                 passed_steps = 0
                 failed_steps = 0
                 all_logs = []
+                all_screenshots = []  # 新增：收集所有截图
                 total_duration = 0
                 
                 # 执行每个测试用例
@@ -1103,7 +1104,19 @@ class UIExecutionService:
                     passed_steps += result['passed_steps']
                     failed_steps += result['failed_steps']
                     total_duration += result.get('duration', 0)
-                    all_logs.append(result['logs'])
+                    all_logs.append(f"\n{'='*60}\n测试用例: {test_case.name}\n{'='*60}\n{result['logs']}")
+                    
+                    # 新增：收集截图数据
+                    if result.get('screenshots'):
+                        for screenshot in result['screenshots']:
+                            all_screenshots.append({
+                                'test_case_id': test_case.id,
+                                'test_case_name': test_case.name,
+                                'step_number': screenshot.get('step_number'),
+                                'step_description': screenshot.get('step_description', ''),
+                                'error_message': screenshot.get('error_message', ''),
+                                'screenshot': screenshot.get('screenshot')
+                            })
                     
                     if engine.is_stopped:
                         break
@@ -1121,6 +1134,7 @@ class UIExecutionService:
                     'passed_steps': passed_steps,
                     'failed_steps': failed_steps,
                     'duration': total_duration,
+                    'screenshots': all_screenshots,  # 新增：保存截图数据
                     'logs': '\n\n'.join(all_logs)
                 })
                 
@@ -1215,6 +1229,7 @@ class UIExecutionService:
                 passed_steps = 0
                 failed_steps = 0
                 all_logs = []
+                all_screenshots = []  # 新增：收集所有截图
                 
                 # 执行每个测试用例
                 for suite_case in suite_cases:
@@ -1279,6 +1294,18 @@ class UIExecutionService:
                     passed_steps += result['passed_steps']
                     failed_steps += result['failed_steps']
                     all_logs.append(f"\n{'='*80}\n测试用例: {test_case.name}\n{'='*80}\n{result['logs']}")
+                    
+                    # 新增：收集截图数据
+                    if result.get('screenshots'):
+                        for screenshot in result['screenshots']:
+                            all_screenshots.append({
+                                'test_case_id': test_case.id,
+                                'test_case_name': test_case.name,
+                                'step_number': screenshot.get('step_number'),
+                                'step_description': screenshot.get('step_description', ''),
+                                'error_message': screenshot.get('error_message', ''),
+                                'screenshot': screenshot.get('screenshot')
+                            })
                 
                 # 计算总执行时长
                 duration = int((time.time() - start_time) * 1000)
@@ -1294,6 +1321,7 @@ class UIExecutionService:
                     passed_steps=passed_steps,
                     failed_steps=failed_steps,
                     duration=duration,
+                    screenshots=all_screenshots,
                     logs='\n\n'.join(all_logs)
                 )
                 

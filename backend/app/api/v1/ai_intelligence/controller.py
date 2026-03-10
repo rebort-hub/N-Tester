@@ -427,11 +427,27 @@ async def create_ai_model_config(
     try:
         config = await AIModelConfigService.create_config(db, config_data, current_user_id)
         
-        # 脱敏API Key
-        if config.api_key:
-            config.api_key = config.api_key[:8] + "****" + config.api_key[-4:]
+        # 转换为字典并脱敏API Key
+        config_dict = {
+            'id': config.id,
+            'config_name': config.name,
+            'name': config.name,
+            'provider': config.model_type,
+            'model_type': config.model_type,
+            'role': config.role,
+            'api_key': config.api_key[:8] + "****" + config.api_key[-4:] if config.api_key else None,
+            'base_url': config.base_url,
+            'model_name': config.model_name,
+            'max_tokens': config.max_tokens,
+            'temperature': config.temperature,
+            'top_p': config.top_p,
+            'is_active': config.is_active,
+            'llm_config_id': config.llm_config_id,
+            'creation_date': config.creation_date.isoformat() if config.creation_date else None,
+            'updation_date': config.updation_date.isoformat() if config.updation_date else None
+        }
         
-        return success_response(data=config)
+        return success_response(data=config_dict)
     except Exception as e:
         return error_response(message=f"创建AI模型配置失败: {str(e)}")
 
@@ -449,11 +465,27 @@ async def get_ai_model_config(
         if not config:
             raise HTTPException(status_code=404, detail="AI模型配置不存在")
         
-        # 脱敏API Key
-        if config.api_key:
-            config.api_key = config.api_key[:8] + "****" + config.api_key[-4:]
+        # 转换为字典并脱敏API Key
+        config_dict = {
+            'id': config.id,
+            'config_name': config.name,
+            'name': config.name,
+            'provider': config.model_type,
+            'model_type': config.model_type,
+            'role': config.role,
+            'api_key': config.api_key[:8] + "****" + config.api_key[-4:] if config.api_key else None,
+            'base_url': config.base_url,
+            'model_name': config.model_name,
+            'max_tokens': config.max_tokens,
+            'temperature': config.temperature,
+            'top_p': config.top_p,
+            'is_active': config.is_active,
+            'llm_config_id': config.llm_config_id,
+            'creation_date': config.creation_date.isoformat() if config.creation_date else None,
+            'updation_date': config.updation_date.isoformat() if config.updation_date else None
+        }
         
-        return success_response(data=config)
+        return success_response(data=config_dict)
     except Exception as e:
         return error_response(message=f"获取AI模型配置失败: {str(e)}")
 
@@ -471,11 +503,27 @@ async def update_ai_model_config(
         if not config:
             raise HTTPException(status_code=404, detail="AI模型配置不存在")
         
-        # 脱敏API Key
-        if config.api_key:
-            config.api_key = config.api_key[:8] + "****" + config.api_key[-4:]
+        # 转换为字典并脱敏API Key
+        config_dict = {
+            'id': config.id,
+            'config_name': config.name,
+            'name': config.name,
+            'provider': config.model_type,
+            'model_type': config.model_type,
+            'role': config.role,
+            'api_key': config.api_key[:8] + "****" + config.api_key[-4:] if config.api_key else None,
+            'base_url': config.base_url,
+            'model_name': config.model_name,
+            'max_tokens': config.max_tokens,
+            'temperature': config.temperature,
+            'top_p': config.top_p,
+            'is_active': config.is_active,
+            'llm_config_id': config.llm_config_id,
+            'creation_date': config.creation_date.isoformat() if config.creation_date else None,
+            'updation_date': config.updation_date.isoformat() if config.updation_date else None
+        }
         
-        return success_response(data=config)
+        return success_response(data=config_dict)
     except Exception as e:
         return error_response(message=f"更新AI模型配置失败: {str(e)}")
 
@@ -486,15 +534,18 @@ async def delete_ai_model_config(
     db: AsyncSession = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id)
 ):
-    """删除AI模型配置"""
+    """删除AI模型配置（硬删除）"""
     try:
-        success = await AIModelConfigService.delete_config(db, config_id)
-        if not success:
-            return error_response(message="AI模型配置不存在", code=404)
-        
+        await AIModelConfigService.delete_config(db, config_id)
         return success_response(message="删除成功")
     except Exception as e:
-        return error_response(message=f"删除AI模型配置失败: {str(e)}")
+        error_msg = str(e)
+        if "无法删除" in error_msg:
+            return error_response(message=error_msg, code=400)
+        elif "不存在" in error_msg:
+            return error_response(message="AI模型配置不存在", code=404)
+        else:
+            return error_response(message=f"删除AI模型配置失败: {error_msg}")
 
 
 # ==================== 提示词配置 ====================
