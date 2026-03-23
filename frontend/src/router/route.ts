@@ -61,6 +61,22 @@ export const dynamicRoutes: Array<RouteRecordRaw> = [
 					icon: 'iconfont icon-shouye',
 				},
 			},
+			// Web 报告静态路由
+			{
+				path: '/web/report',
+				name: 'webReport',
+				component: () => import('/src/views/web_view/web_report.vue'),
+				meta: {
+					title: 'Web 报告',
+					isLink: '',
+					isHide: true,
+					isKeepAlive: false,
+					isAffix: false,
+					isIframe: false,
+					roles: ['admin'],
+					icon: 'ele-Document',
+				},
+			},
 			{
 				path: '/system',
 				name: 'system',

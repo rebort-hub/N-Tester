@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, insert, update, select
 from sqlalchemy.orm import aliased
 
-from app.models.api_models import ModuleInfo, ProjectInfo
+from app.models.api_models import LegacyModuleInfo, ProjectInfo
 from app.models.base import Base
 from app.api.v1.system.user.model import UserModel
 
@@ -67,14 +67,14 @@ class TimedTask(Base):
 
         stmt = select(cls).where(*q) \
             .outerjoin(u, u.id == cls.created_by) \
-            .outerjoin(ModuleInfo, ModuleInfo.id == cls.module_id) \
+            .outerjoin(LegacyModuleInfo, LegacyModuleInfo.id == cls.module_id) \
             .outerjoin(ProjectInfo, cls.project_id == ProjectInfo.id) \
             .outerjoin(UserModel, UserModel.id == cls.updated_by) \
             .with_only_columns(*cls.get_table_columns(),
                                u.nickname.label('created_by_name'),
                                UserModel.nickname.label('updated_by_name'),
                                ProjectInfo.name.label('project_name'),
-                               ModuleInfo.name.label('module_name')) \
+                               LegacyModuleInfo.name.label('module_name')) \
             .order_by(cls.id.desc())
         return await cls.pagination(stmt)
 

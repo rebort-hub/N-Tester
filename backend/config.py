@@ -17,7 +17,7 @@ project_desc = """
 class Configs(BaseSettings):
     SERVER_DESC: str = project_desc  # 描述
     SERVER_VERSION: typing.Union[int, str] = 2.0  # 版本
-    BASE_URL: AnyHttpUrl = "http://127.0.0.1:8100"  # 开发环境
+    BASE_URL: AnyHttpUrl = Field(default="http://127.0.0.1:8100", validation_alias="BASE_URL")  # 开发环境
 
     API_PREFIX: str = "/api"  # 接口前缀 - v1版本通过路由器添加
     STATIC_DIR: str = 'static'  # 静态文件目录
@@ -155,6 +155,49 @@ class Configs(BaseSettings):
     
     # Ollama (本地)
     OLLAMA_HOST: str = Field(default="http://localhost:11434", validation_alias="OLLAMA_HOST")
+    
+    # ================================================= #
+    # ******** 云真机配置 *********** #
+    # ================================================= #
+    # 云真机服务IP地址
+    IP: str = Field(default="0.0.0.0", validation_alias="DEVICE_IP")
+    # 云真机服务端口
+    DEVICE_PORT: int = Field(default=8000, validation_alias="DEVICE_PORT")
+    # 云真机服务地址
+    DEVICE_URL: str = Field(default="", validation_alias="DEVICE_URL")
+
+    # ================================================= #
+    # ******** STF 设备池配置 *********** #
+    # ================================================= #
+    # STF 服务地址，例如：http://172.16.60.204:7100
+    STF_BASE_URL: str = Field(default="", validation_alias="STF_BASE_URL")
+    # STF API Token（通常为 Bearer Token）
+    STF_TOKEN: str = Field(default="", validation_alias="STF_TOKEN")
+
+    # ================================================= #
+    # ******** APP 自动化（Airtest / 子进程执行器） *********** #
+    # ================================================= #
+    # 项目根目录（media/app_result、相对模板路径等）；不填则自动推断仓库根
+    APP_PROJECT_ROOT: str = Field(default="", validation_alias="APP_PROJECT_ROOT")
+    # 与旧 l-tester config.settings.project_path 同名，可与 APP_PROJECT_ROOT 二选一
+    PROJECT_PATH: str = Field(default="", validation_alias="PROJECT_PATH")
+    # 截图/视频 URL 前缀（浏览器可访问的后端或网关地址）；不填则尝试用下方 BASE_URL
+    APP_PUBLIC_BASE_URL: str = Field(default="", validation_alias="APP_PUBLIC_BASE_URL")
+    # type=6「删除差更文件」：adb rm -rf 路径，多个用分号分隔
+    APP_DEVICE_RM_PATHS: str = Field(default="", validation_alias="APP_DEVICE_RM_PATHS")
+    # 短信验证码步骤：短信正文需包含的关键字（对齐旧代码占位「识别文案」）
+    APP_SMS_BODY_KEYWORD: str = Field(default="识别文案", validation_alias="APP_SMS_BODY_KEYWORD")
+    # 设为 1/true/yes 时使用 Appium+OpenCV 执行器（无需安装 airtest）
+    USE_APPIUM_APP_EXECUTOR: str = Field(default="", validation_alias="USE_APPIUM_APP_EXECUTOR")
+    APPIUM_SERVER_URL: str = Field(default="http://127.0.0.1:4723", validation_alias="APPIUM_SERVER_URL")
+    # Appium 模板路径拼接根目录
+    APP_TEMPLATE_ROOT: str = Field(default="backend", validation_alias="APP_TEMPLATE_ROOT")
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # 如果没有设置DEVICE_URL，则根据IP和端口自动生成
+        if not self.DEVICE_URL:
+            self.DEVICE_URL = f"http://{self.IP}:{self.DEVICE_PORT}"
 
     model_config = SettingsConfigDict(case_sensitive=True, env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

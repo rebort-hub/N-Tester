@@ -2,11 +2,39 @@
 # @author: rebort
 import uuid
 import re
+import json
 from typing import Dict, Any
+from fastapi import Request
 
 
 def get_str_uuid():
     return str(uuid.uuid4()).replace("-", "")
+
+
+async def body_to_json(request: Request) -> Dict[str, Any]:
+    """
+    处理请求体，将其转换为JSON格式
+    迁移自 l-tester/common/request_to_json.py
+    
+    Args:
+        request: FastAPI请求对象
+        
+    Returns:
+        解析后的JSON数据
+    """
+    data = await request.body()
+    return json.loads(data)
+
+
+def get_current_time_str() -> str:
+    """
+    获取当前时间字符串
+    
+    Returns:
+        格式化的时间字符串
+    """
+    from datetime import datetime
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
 def format_file_size(size_bytes: int) -> str:

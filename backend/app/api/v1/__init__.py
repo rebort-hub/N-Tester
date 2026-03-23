@@ -18,6 +18,13 @@ from app.api.v1.reviews.controller import router as reviews_router
 from app.api.v1.assistant.controller import router as assistant_router
 from app.api.v1.notifications.controller import router as notifications_router
 from app.api.v1.dashboard.controller import router as dashboard_router
+# L-Tester 迁移模块
+from app.api.v1.cloud_device.controller import router as cloud_device_router
+from app.api.v1.api_automation.controller import router as api_automation_router
+from app.api.v1.web_management.controller import router as web_management_router
+from app.api.v1.app_management.controller import router as app_management_router
+from app.api.v1.task_scheduler.controller import router as task_scheduler_router
+from app.api.v1.app_mitmproxy.controller import router as app_mitmproxy_router
 
 # 创建v1路由
 router = APIRouter(prefix="/v1")
@@ -38,5 +45,13 @@ router.include_router(reviews_router, tags=["用例评审"])
 router.include_router(assistant_router, tags=["AI助手"])
 router.include_router(notifications_router, tags=["统一通知系统"])
 router.include_router(dashboard_router, tags=["首页看板"])
+
+# L-Tester 迁移模块路由
+router.include_router(cloud_device_router, prefix="/cloud_device", tags=["云真机管理"])
+router.include_router(api_automation_router, prefix="/api_automation", tags=["接口自动化"])
+router.include_router(web_management_router, prefix="/web_management", tags=["Web管理模块"])
+router.include_router(app_management_router, prefix="/app_management", tags=["APP管理"])
+router.include_router(task_scheduler_router, prefix="/task_scheduler", tags=["定时任务调度"])
+router.include_router(app_mitmproxy_router, prefix="/mitmproxy", tags=["APP抓包( mitmproxy )"])
 
 __all__ = ["router"]

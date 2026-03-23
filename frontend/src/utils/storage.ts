@@ -57,3 +57,9 @@ export const Session = {
 		window.sessionStorage.clear();
 	},
 };
+
+/**
+ * 兼容旧版命名：LocalStorage / SessionStorage
+ */
+export const LocalStorage = Local;
+export const SessionStorage = Session;

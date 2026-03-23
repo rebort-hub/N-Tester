@@ -14,7 +14,8 @@ export function authDirective(app: App) {
 		mounted(el, binding) {
 			const stores = useUserStore();
 			const authBtnList = stores.userInfos.authBtnList || [];
-			if (!authBtnList.some((v: string) => v === binding.value)) el.parentNode?.removeChild(el);
+			// some场景下 mounted 的 el 可能为 undefined/非节点（Vue diff + 条件渲染），避免 parentNode 报错
+			if (!authBtnList.some((v: string) => v === binding.value)) el?.parentNode?.removeChild(el);
 		},
 	});
 	// 多个权限验证，满足一个则显示（v-auths="[xxx,xxx]"）
@@ -28,7 +29,7 @@ export function authDirective(app: App) {
 					if (val === v) flag = true;
 				});
 			});
-			if (!flag) el.parentNode?.removeChild(el);
+			if (!flag) el?.parentNode?.removeChild(el);
 		},
 	});
 	// 多个权限验证，全部满足则显示（v-auth-all="[xxx,xxx]"）
@@ -37,7 +38,7 @@ export function authDirective(app: App) {
 			const stores = useUserStore();
 			const authBtnList = stores.userInfos.authBtnList || [];
 			const flag = judementSameArr(binding.value, authBtnList);
-			if (!flag) el.parentNode?.removeChild(el);
+			if (!flag) el?.parentNode?.removeChild(el);
 		},
 	});
 }

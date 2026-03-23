@@ -232,8 +232,14 @@ export function dynamicImport(dynamicViewsModules: Record<string, Function>, com
 	const normalizedComponent = component.replace(/^\//, '').replace(/\.vue$/, '');
 	
 	const matchKeys = keys.filter((key) => {
-		// 处理路径：移除 ../views 前缀，保留完整路径
-		const k = key.replace(/^\.\.\/views\//, '').replace(/\.vue$/, '');
+		// 处理路径：移除 ../views 或 ../layout 前缀，保留相对模块路径
+		// - ../views/testing/api-automation/index.vue  -> testing/api-automation/index
+		// - ../layout/routerView/parent.vue           -> layout/routerView/parent
+		const k = key
+			.replace(/^\.\.\/views\//, '')
+			.replace(/^\.\.\/layout\//, 'layout/')
+			.replace(/\.vue$/, '')
+			.replace(/\.tsx$/, '');
 		
 		// 多种匹配策略
 		const match1 = k === normalizedComponent;

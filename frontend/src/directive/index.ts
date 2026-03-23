@@ -2,6 +2,8 @@ import type {App} from 'vue';
 import {authDirective} from '/@/directive/authDirective';
 import {wavesDirective, dragDirective} from '/@/directive/customDirective';
 import {clickOutside} from '/@/directive/clickOutside';
+import { debounceDirective } from '/@/directive/debounce';
+import { throttleDirective } from '/@/directive/throttle';
 
 
 /**
@@ -19,4 +21,7 @@ export function directive(app: App) {
   dragDirective(app);
   // 点击外部区域
   clickOutside(app)
+  // 兼容旧版：按钮防抖/节流
+  app.directive('debounce', debounceDirective);
+  app.directive('throttle', throttleDirective);
 }

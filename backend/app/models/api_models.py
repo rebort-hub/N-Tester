@@ -16,9 +16,9 @@ class ProjectInfo(Base):
     description = Column(Text, comment='项目描述')
 
 
-class ModuleInfo(Base):
-    """模块信息表"""
-    __tablename__ = 'module_info'
+class LegacyModuleInfo(Base):
+    """旧版模块信息表（用于兼容）"""
+    __tablename__ = 'legacy_module_info'
 
     id = Column(Integer, primary_key=True, autoincrement=True, comment='模块ID')
     name = Column(String(100), nullable=False, comment='模块名称')

@@ -2,7 +2,7 @@
 文件管理数据模型
 """
 
-from sqlalchemy import Column, String, Integer, DateTime, Text
+from sqlalchemy import Column, String, Integer, DateTime, Text, LargeBinary
 from app.models.base import Base
 
 
@@ -21,8 +21,11 @@ class FileModel(Base):
     file_type = Column(String(100), nullable=True, comment="文件MIME类型")
     file_ext = Column(String(20), nullable=True, comment="文件扩展名")
     
-    upload_type = Column(String(20), nullable=False, default="local", comment="上传类型（local/oss）")
+    upload_type = Column(String(20), nullable=False, default="local", comment="上传类型（local/oss/database）")
     storage_path = Column(String(500), nullable=True, comment="存储路径")
+    
+    # 新增：文件内容字段，用于直接存储文件二进制数据
+    file_content = Column(LargeBinary, nullable=True, comment="文件二进制内容（用于数据库存储模式）")
     
     description = Column(Text, nullable=True, comment="文件描述")
     tags = Column(String(500), nullable=True, comment="文件标签")

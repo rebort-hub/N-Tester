@@ -8,15 +8,12 @@ from app.models.base import Base
 if __name__ != "__main__":
     try:
         # 尝试导入所有模型（用于 Alembic）
-        from app.models.system_models import *
         from app.models.rbac_models import *
         from app.models.celery_beat_models import *
-        # AI智能化模块的模型在独立模块中管理
-        from app.api.v1.ai_intelligence.model import *
-        # 统一通知系统模型
-        from app.api.v1.notifications.model import *
-    except ImportError:
+        from app.models.api_models import *
+    except ImportError as e:
         # 如果导入失败（比如在 Alembic 环境中缺少某些依赖），忽略
+        print(f"模型导入警告: {e}")
         pass
 
 # 只在应用运行时需要的功能

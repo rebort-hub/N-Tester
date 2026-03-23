@@ -30,7 +30,17 @@ try:
     target_metadata = Base.metadata
     
     # 导入模型以便 Alembic 检测
-    from app.models import system_models, celery_beat_models, api_models
+    from app.models import rbac_models, celery_beat_models, api_models
+    # 导入云真机模块模型
+    from app.api.v1.cloud_device import model as cloud_device_model
+    # 导入接口自动化模块模型
+    from app.api.v1.api_automation import model as api_automation_model
+    # 导入 Web 管理（Web UI 自动化迁移模块）模型
+    from app.api.v1.web_management import model as web_management_model
+    # 导入 APP 抓包（mitmproxy）迁移模块模型
+    from app.api.v1.app_mitmproxy import model as app_mitmproxy_model
+    # 导入 APP 自动化（app_management）迁移模块模型
+    from app.api.v1.app_management import model as app_management_model
     
     print(f"成功导入 {len(target_metadata.tables)} 个表")
     

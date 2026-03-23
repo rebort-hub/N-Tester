@@ -81,13 +81,15 @@ service.interceptors.response.use(
 					res.data.rowTotal = res.data.total;
 				}
 				
-				// 2. 单个对象或数组的字段映射
+				// 2. 单个对象或数组的字段映射（与后端 web_management 等接口对齐）
 				const mapFields = (obj: any) => {
 					if (!obj || typeof obj !== 'object') return obj;
 					
-					// 时间字段映射
+					// 时间字段映射（后端常用 creation_date / updation_date，前端表格常用 create_time / update_time）
 					if (obj.created_at) obj.creation_date = obj.created_at;
 					if (obj.updated_at) obj.updation_date = obj.updated_at;
+					if (obj.creation_date !== undefined) obj.create_time = obj.create_time ?? obj.creation_date;
+					if (obj.updation_date !== undefined) obj.update_time = obj.update_time ?? obj.updation_date;
 					
 					// 备注字段映射
 					if (obj.remark !== undefined) obj.remarks = obj.remark;
@@ -120,8 +122,16 @@ service.interceptors.response.use(
 					return obj;
 				};
 				
-				// 如果是数组，映射每个元素
-				if (Array.isArray(res.data.items)) {
+				// 如果是 { content: [], total } 格式（web_management 场景列表等），只映射 content 每项，保留 total
+				if (
+					typeof res.data === 'object' &&
+					Array.isArray((res.data as any).content) &&
+					typeof (res.data as any).total === 'number'
+				) {
+					(res.data as any).content = (res.data as any).content.map(mapFields);
+				}
+				// 如果是 items + total 分页格式
+				else if (Array.isArray(res.data.items)) {
 					res.data.items = res.data.items.map(mapFields);
 					if (res.data.rows) {
 						res.data.rows = res.data.rows.map(mapFields);
@@ -131,7 +141,7 @@ service.interceptors.response.use(
 				else if (Array.isArray(res.data)) {
 					res.data = res.data.map(mapFields);
 				}
-				// 如果是单个对象
+				// 如果是单个对象（避免对 { content, total } 整对象 mapFields 导致 content 被误改）
 				else if (typeof res.data === 'object') {
 					res.data = mapFields(res.data);
 				}

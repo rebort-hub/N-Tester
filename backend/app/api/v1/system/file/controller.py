@@ -4,7 +4,7 @@
 
 from typing import List
 from fastapi import APIRouter, UploadFile, File, Depends, Query, Request, Form
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.sqlalchemy import get_db
 from app.core.dependencies import get_current_user_id
@@ -27,6 +27,7 @@ async def upload_file(
     description: str = Form(None, description="文件描述"),
     tags: str = Form(None, description="文件标签"),
     is_public: int = Form(1, description="是否公开（0:私有 1:公开）"),
+    store_in_database: bool = Form(True, description="是否存储在数据库中"),
     db: AsyncSession = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id)
 ):
@@ -39,6 +40,7 @@ async def upload_file(
         tags=tags,
         is_public=is_public,
         request_base_url=request_base_url,
+        store_in_database=store_in_database,
         db=db
     )
     return success_response(data=result.model_dump(), message="上传成功")
@@ -183,13 +185,29 @@ async def download_file(
     current_user_id: int = Depends(get_current_user_id)
 ):
     """下载文件"""
-    file_path, original_name = await FileService.download_file_service(file_id, current_user_id, db)
+    from urllib.parse import quote
     
-    return FileResponse(
-        path=file_path,
-        filename=original_name,
-        media_type='application/octet-stream'
-    )
+    file_path, original_name, file_content = await FileService.download_file_service(file_id, current_user_id, db)
+    
+    # 对文件名进行URL编码以支持中文文件名
+    encoded_filename = quote(original_name.encode('utf-8'))
+    
+    if file_content is not None:
+        # 数据库存储的文件，直接返回内容
+        return Response(
+            content=file_content,
+            media_type='application/octet-stream',
+            headers={
+                "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"
+            }
+        )
+    else:
+        # 文件系统存储的文件，返回文件响应
+        return FileResponse(
+            path=file_path,
+            filename=original_name,
+            media_type='application/octet-stream'
+        )
 
 
 @router.get("/stats/summary", summary="获取文件统计信息")
@@ -199,3 +217,21 @@ async def get_file_stats(
     """获取文件统计信息"""
     result = await FileService.get_file_stats_service(db)
     return success_response(data=result)
+
+@router.get("/content/{file_name}", summary="获取数据库存储的文件内容")
+async def get_file_content(
+    file_name: str,
+    db: AsyncSession = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """获取存储在数据库中的文件内容"""
+    file_content, file_type = await FileService.get_file_content_service(file_name, current_user_id, db)
+    
+    return Response(
+        content=file_content,
+        media_type=file_type,
+        headers={
+            "Cache-Control": "public, max-age=3600",
+            "Content-Disposition": f"inline; filename={file_name}"
+        }
+    )

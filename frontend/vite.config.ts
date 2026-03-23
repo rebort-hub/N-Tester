@@ -15,6 +15,7 @@ const pathResolve = (dir: string) => {
 
 const alias: Record<string, string> = {
   '/@': pathResolve('./src/'),
+  '@': pathResolve('./src/'),
 };
 
 const viteConfig = defineConfig((mode: ConfigEnv) => {
@@ -31,6 +32,7 @@ const viteConfig = defineConfig((mode: ConfigEnv) => {
       //   localeData: zh_CN.contents
       // })
     ],
+    // 注意：企业级工程不允许跨目录导入旧工程源码
     optimizeDeps: {
       /** vite >= 2.3.0 */
       include: [

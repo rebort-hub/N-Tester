@@ -2,13 +2,16 @@
 基础CRUD类
 提供通用的数据访问操作
 """
+from __future__ import annotations
 
-from typing import Any, Generic, TypeVar, Type, Optional
+from typing import Any, Generic, TypeVar, Type, Optional, TYPE_CHECKING
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete, func, and_
-from app.db.sqlalchemy import Base
 
-ModelType = TypeVar("ModelType", bound=Base)
+if TYPE_CHECKING:
+    from app.db.sqlalchemy import Base
+
+ModelType = TypeVar("ModelType", bound="Base")
 
 
 class BaseCRUD(Generic[ModelType]):
