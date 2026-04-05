@@ -553,8 +553,12 @@ cd backend
 cp .env.example .env
 
 # 编辑 .env 文件，修改数据库连接信息
-# MYSQL_DATABASE_URI=mysql+asyncmy://用户名:密码@localhost:3306/ntester
-# REDIS_URI=redis://localhost:6379/4
+# MySQL 数据库配置
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=123456
+DB_NAME=ntester
 ```
 # 创建虚拟环境
 python -m venv .venv
@@ -624,10 +628,8 @@ node -v  # v20.0
 ##### 2. 安装依赖管理工具
 
 ```bash
-# 安装 cnpm（使用淘宝镜像）
-npm install -g cnpm --registry=https://registry.npm.taobao.org
 
-# 或安装 yarn
+# 安装 yarn
 npm install -g yarn
 ```
 
@@ -635,21 +637,32 @@ npm install -g yarn
 
 ```bash
 cd frontend
+# 新建配置文件.env,添加如下内容到配置文件
+# port 端口号
+VITE_PORT=3000
 
-# 使用 cnpm
-cnpm install
+# open 运行 npm run dev 时自动打开浏览器
+VITE_OPEN=true
 
-# 或使用 yarn
-yarn install  --registry=https://registry.npm.taobao.org
+# public path 配置线上环境路径（打包）、本地通过 http-server 访问时，请置空即可
+VITE_PUBLIC_PATH=/
+
+# 网站主标题（菜单导航、浏览器当前网页标题)
+VITE_GLOBAL_TITLE=N-Tester
+#网站副标题（登录页顶部文字）
+VITE_GLOBAL_VICE_TITLE=N-Tester
+
+VITE_APP_NAMESPACE=N-Tester
+
+# 安装依赖使用 yarn
+yarn install
 ```
 
 ##### 4. 启动开发服务器
 
 ```bash
-# 使用 cnpm
-cnpm run dev
 
-# 或使用 yarn
+# 使用 yarn
 yarn dev
 ```
 
@@ -658,10 +671,7 @@ yarn dev
 ##### 5. 生产构建
 
 ```bash
-# 使用 cnpm
-cnpm run build
-
-# 或使用 yarn
+# 使用 yarn
 yarn build
 
 # 构建产物在 dist/ 目录

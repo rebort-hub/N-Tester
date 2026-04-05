@@ -30,6 +30,26 @@ class EnvironmentEnum(str, Enum):
     PROD = "prod"
 
 
+def parse_db_url(url: str) -> dict:
+    """
+    安全解析数据库 URL，正确处理密码中的特殊字符（@、: 等）。
+    支持 URL 编码的密码，例如 p%40ss%3Aw0rd 会被解码为 p@ss:w0rd。
+    """
+    from urllib.parse import urlparse, unquote
+
+    # 去掉 driver 前缀，urlparse 只认标准 scheme
+    normalized = url.replace("mysql+pymysql://", "mysql://", 1)
+    parsed = urlparse(normalized)
+
+    return {
+        "host": parsed.hostname or "127.0.0.1",
+        "port": parsed.port or 3306,
+        "user": unquote(parsed.username or ""),
+        "password": unquote(parsed.password or ""),
+        "dbname": parsed.path.lstrip("/").split("?")[0],
+    }
+
+
 def get_alembic_config() -> Config:
     """获取 Alembic 配置"""
     # Alembic 配置文件路径
@@ -536,25 +556,16 @@ def downgrade() -> None:
             import pymysql
             from config import config
             
-            # 解析数据库 URL
-            url = config.DATABASE_URI_SYNC
-            parts = url.replace('mysql+pymysql://', '').split('/')
-            auth_host = parts[0]
-            dbname = parts[1].split('?')[0] if len(parts) > 1 else ''
-            
-            auth, host_port = auth_host.split('@')
-            user, password = auth.split(':')
-            host_port_parts = host_port.split(':')
-            host = host_port_parts[0]
-            port = int(host_port_parts[1]) if len(host_port_parts) > 1 else 3306
+            # 解析数据库 URL（安全处理特殊字符密码）
+            db = parse_db_url(config.DATABASE_URI_SYNC)
             
             # 连接数据库
             conn = pymysql.connect(
-                host=host,
-                port=port,
-                user=user,
-                password=password,
-                database=dbname,
+                host=db["host"],
+                port=db["port"],
+                user=db["user"],
+                password=db["password"],
+                database=db["dbname"],
                 charset='utf8mb4'
             )
             cursor = conn.cursor()
@@ -683,28 +694,19 @@ def check(
         typer.echo("测试数据库连接...")
         import pymysql
         
-        # 解析数据库 URL
-        url = config.DATABASE_URI_SYNC
-        parts = url.replace('mysql+pymysql://', '').split('/')
-        auth_host = parts[0]
-        dbname = parts[1].split('?')[0] if len(parts) > 1 else ''
-        
-        auth, host_port = auth_host.split('@')
-        user, password = auth.split(':')
-        host_port_parts = host_port.split(':')
-        host = host_port_parts[0]
-        port = int(host_port_parts[1]) if len(host_port_parts) > 1 else 3306
+        # 解析数据库 URL（安全处理特殊字符密码）
+        db = parse_db_url(config.DATABASE_URI_SYNC)
         
         conn = pymysql.connect(
-            host=host,
-            port=port,
-            user=user,
-            password=password,
-            database=dbname
+            host=db["host"],
+            port=db["port"],
+            user=db["user"],
+            password=db["password"],
+            database=db["dbname"]
         )
         conn.close()
         
-        typer.echo(f"数据库连接成功: {dbname}")
+        typer.echo(f"数据库连接成功: {db['dbname']}")
         typer.echo()
         typer.echo("=" * 50)
         typer.echo("所有检查通过！")
@@ -743,25 +745,16 @@ def seed(
         from config import config
         import pymysql
         
-        # 解析数据库 URL
-        url = config.DATABASE_URI_SYNC
-        parts = url.replace('mysql+pymysql://', '').split('/')
-        auth_host = parts[0]
-        dbname = parts[1].split('?')[0] if len(parts) > 1 else ''
-        
-        auth, host_port = auth_host.split('@')
-        user, password = auth.split(':')
-        host_port_parts = host_port.split(':')
-        host = host_port_parts[0]
-        port = int(host_port_parts[1]) if len(host_port_parts) > 1 else 3306
+        # 解析数据库 URL（安全处理特殊字符密码）
+        db = parse_db_url(config.DATABASE_URI_SYNC)
         
         # 连接数据库
         conn = pymysql.connect(
-            host=host,
-            port=port,
-            user=user,
-            password=password,
-            database=dbname,
+            host=db["host"],
+            port=db["port"],
+            user=db["user"],
+            password=db["password"],
+            database=db["dbname"],
             charset='utf8mb4'
         )
         cursor = conn.cursor()

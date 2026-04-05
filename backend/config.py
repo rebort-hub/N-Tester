@@ -2,8 +2,8 @@
 # @author: Rebort
 import os
 import typing
-
-from pydantic import AnyHttpUrl, Field
+from urllib.parse import quote
+from pydantic import AnyHttpUrl, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 project_desc = """
@@ -15,8 +15,8 @@ project_desc = """
 
 
 class Configs(BaseSettings):
-    SERVER_DESC: str = project_desc  # 描述
-    SERVER_VERSION: typing.Union[int, str] = 2.0  # 版本
+    SERVER_DESC: str = project_desc
+    SERVER_VERSION: typing.Union[int, str] = 2.0
     BASE_URL: AnyHttpUrl = Field(default="http://127.0.0.1:8100", validation_alias="BASE_URL")  # 开发环境
 
     API_PREFIX: str = "/api"  # 接口前缀 - v1版本通过路由器添加
@@ -30,11 +30,38 @@ class Configs(BaseSettings):
     # redis
     REDIS_URI: str = Field(..., validation_alias="REDIS_URI")  # redis
 
+    # ---- 数据库独立字段----
+    DB_HOST: str = Field(default="", validation_alias="DB_HOST")
+    DB_PORT: int = Field(default=3306, validation_alias="DB_PORT")
+    DB_USER: str = Field(default="", validation_alias="DB_USER")
+    DB_PASSWORD: str = Field(default="", validation_alias="DB_PASSWORD")
+    DB_NAME: str = Field(default="", validation_alias="DB_NAME")
+
+    # ---- 完整 URL 字段（优先级低于独立字段） ----
     # DATABASE_URI: str = "sqlite+aiosqlite:///./sql_app.db?check_same_thread=False"  # Sqlite(异步)
-    DATABASE_URI: str = Field(..., validation_alias="MYSQL_DATABASE_URI")  # MySQL(异步)
-    DATABASE_URI_SYNC: str = Field(..., validation_alias="MYSQL_DATABASE_URI_SYNC")  # MySQL(同步，用于 Alembic)
+    DATABASE_URI: str = Field(default="", validation_alias="MYSQL_DATABASE_URI")  # MySQL(异步)
+    DATABASE_URI_SYNC: str = Field(default="", validation_alias="MYSQL_DATABASE_URI_SYNC")  # MySQL(同步，用于 Alembic)
     # DATABASE_URI: str = "postgresql+asyncpg://postgres:123456@localhost:5432/postgres"  # PostgreSQL(异步)
     DATABASE_ECHO: bool = False  # 是否打印数据库日志 (可看到创建表、表数据增删改查的信息)
+
+    @model_validator(mode="after")
+    def build_database_uris(self) -> "Configs":
+        """若配置了独立字段，自动拼接 URI"""
+        if self.DB_HOST and self.DB_USER and self.DB_NAME:
+            encoded_password = quote(self.DB_PASSWORD, safe="")
+            base = f"{self.DB_USER}:{encoded_password}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}?charset=UTF8MB4"
+            self.DATABASE_URI = f"mysql+aiomysql://{base}"
+            self.DATABASE_URI_SYNC = f"mysql+pymysql://{base}"
+            # celery beat 也用同一个数据库
+            if not self.beat_db_uri:
+                self.beat_db_uri = f"mysql+pymysql://{base}"
+        elif not self.DATABASE_URI or not self.DATABASE_URI_SYNC:
+            raise ValueError(
+                "请在 .env 中配置数据库连接：\n"
+                "  推荐方式（支持特殊字符密码）：DB_HOST / DB_PORT / DB_USER / DB_PASSWORD / DB_NAME\n"
+                "  兼容方式（旧格式）：MYSQL_DATABASE_URI / MYSQL_DATABASE_URI_SYNC"
+            )
+        return self
 
     # logger
     LOGGER_DIR: str = "logs"  # 日志文件夹名
@@ -75,7 +102,7 @@ class Configs(BaseSettings):
     task_run_pool: int = 3
 
     # celery beat
-    beat_db_uri: str = Field(..., validation_alias="CELERY_BEAT_DB_URL")
+    beat_db_uri: str = Field(default="", validation_alias="CELERY_BEAT_DB_URL")
 
     # ================================================= #
     # ******** OAuth 配置 *********** #
