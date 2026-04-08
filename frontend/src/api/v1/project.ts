@@ -1,7 +1,7 @@
 import request from '/@/utils/request';
 
 /**
- * 项目管理API - 简化版本
+ * 项目管理API
  */
 
 // 获取项目列表

@@ -112,6 +112,17 @@ export interface SSEMessageEvent {
 export interface WSMessageRequest {
   type: 'message' | 'ping'
   content?: string
+  attachments?: Array<{
+    name: string
+    size: number
+    type: string
+    url: string
+  }>
+  project_id?: number
+  use_knowledge_base?: boolean
+  knowledge_base_id?: number
+  use_mcp?: boolean
+  mcp_config_id?: number
 }
 
 // ==================== API 函数 ====================
@@ -179,6 +190,17 @@ export const useConversationApi = () => {
   const getMessageList = (conversationId: number, params?: { skip?: number; limit?: number }) => {
     return request<MessageListResponse>({
       url: `/v1/ai/conversation/${conversationId}/messages`,
+      method: 'get',
+      params
+    })
+  }
+
+  /**
+   * 获取 MCP 执行记录
+   */
+  const getMcpRecords = (conversationId: number, params?: { limit?: number }) => {
+    return request<{ records: any[]; total: number }>({
+      url: `/v1/ai/conversation/${conversationId}/mcp-records`,
       method: 'get',
       params
     })
@@ -310,7 +332,7 @@ export const useConversationApi = () => {
     onError?: (error: Event) => void,
     onClose?: () => void,
     onOpen?: () => void
-  ): { ws: WebSocket; send: (content: string) => void; close: () => void } => {
+  ): { ws: WebSocket; send: (payload: Omit<WSMessageRequest, 'type'>) => void; close: () => void } => {
     const token = Session.get('token') || ''
     
     // 构建 WebSocket URL
@@ -364,11 +386,11 @@ export const useConversationApi = () => {
     }
     
     // 发送消息函数
-    const send = (content: string) => {
+    const send = (payload: Omit<WSMessageRequest, 'type'>) => {
       if (ws.readyState === WebSocket.OPEN) {
         const message: WSMessageRequest = {
           type: 'message',
-          content
+          ...payload
         }
         ws.send(JSON.stringify(message))
       } else {
@@ -394,6 +416,7 @@ export const useConversationApi = () => {
     updateConversation,
     deleteConversation,
     getMessageList,
+    getMcpRecords,
     sendMessage,
     sendMessageStream,
     connectWebSocket

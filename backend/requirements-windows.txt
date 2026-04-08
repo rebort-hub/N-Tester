@@ -100,6 +100,7 @@ email-validator==2.3.0
 langchain==1.2.8
 langchain-openai==1.1.7
 langgraph==1.0.7
+langchain-mcp-adapters==0.2.2
 openai==2.16.0
 anthropic==0.76.0
 browser-use==0.12.0

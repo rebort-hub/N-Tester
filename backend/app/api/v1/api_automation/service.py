@@ -13,6 +13,7 @@ import requests
 import uuid
 from datetime import timedelta
 from jsonpath_ng import parse as jsonpath_parse
+import yaml
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import or_
@@ -184,7 +185,9 @@ class ApiAutomationService:
         """
         结果文件目录:{BASEDIR}/static/api_results/{result_id}
         """
-        base = Path(app_config.BASEDIR) / "static" / "api_results" / str(result_id)
+       
+        backend_root = Path(__file__).resolve().parents[4]
+        base = backend_root / app_config.STATIC_DIR / "api_results" / str(result_id)
         if not base.exists():
             os.makedirs(base, exist_ok=True)
         return base
@@ -857,6 +860,719 @@ class ApiAutomationService:
                 it["method"] = method_map[int(api_id)]
 
         return _build_tree(items)
+
+    @staticmethod
+    def _doc_method_to_int(method: str) -> int:
+        mapping = {
+            "get": 1,
+            "post": 2,
+            "put": 3,
+            "delete": 4,
+            "patch": 5,
+            "options": 6,
+        }
+        return mapping.get(str(method or "").lower(), 2)
+
+    @staticmethod
+    def _extract_schema_example(schema: Dict[str, Any]) -> Any:
+        if not isinstance(schema, dict):
+            return {}
+        if "example" in schema:
+            return schema.get("example")
+        schema_type = str(schema.get("type") or "").lower()
+        if schema_type == "object":
+            props = schema.get("properties") or {}
+            out: Dict[str, Any] = {}
+            for k, v in props.items():
+                out[k] = ApiAutomationService._extract_schema_example(v or {})
+            return out
+        if schema_type == "array":
+            item_schema = schema.get("items") or {}
+            return [ApiAutomationService._extract_schema_example(item_schema)]
+        if schema_type in ("integer", "number"):
+            return 0
+        if schema_type == "boolean":
+            return False
+        return ""
+
+    @staticmethod
+    def _build_req_from_openapi(path: str, method: str, operation: Dict[str, Any]) -> Dict[str, Any]:
+        params = []
+        headers = []
+        for p in (operation.get("parameters") or []):
+            if not isinstance(p, dict):
+                continue
+            item = {"key": str(p.get("name") or ""), "value": "", "status": True}
+            p_in = str(p.get("in") or "").lower()
+            example = p.get("example")
+            if example is None:
+                example = ((p.get("schema") or {}).get("example"))
+            item["value"] = "" if example is None else str(example)
+            if not item["key"]:
+                continue
+            if p_in in ("header", "cookie"):
+                headers.append(item)
+            elif p_in in ("query", "path"):
+                params.append(item)
+
+        body_type = 1
+        body: Any = {}
+        request_body = operation.get("requestBody") or {}
+        if isinstance(request_body, dict):
+            content = request_body.get("content") or {}
+            if "application/json" in content:
+                body_type = 2
+                json_info = content.get("application/json") or {}
+                body = json_info.get("example")
+                if body is None:
+                    body = ApiAutomationService._extract_schema_example(json_info.get("schema") or {})
+            elif "application/x-www-form-urlencoded" in content:
+                body_type = 4
+                form_schema = (content.get("application/x-www-form-urlencoded") or {}).get("schema") or {}
+                body = ApiAutomationService._extract_schema_example(form_schema)
+            elif "multipart/form-data" in content:
+                body_type = 3
+                multi_schema = (content.get("multipart/form-data") or {}).get("schema") or {}
+                body = ApiAutomationService._extract_schema_example(multi_schema)
+
+        return {
+            "params_id": None,
+            "body": body,
+            "after": [],
+            "assert": [],
+            "before": [],
+            "config": {"retry": 0, "req_timeout": 5, "res_timeout": 5},
+            "header": headers,
+            "method": ApiAutomationService._doc_method_to_int(method),
+            "params": params,
+            "body_type": body_type,
+            "file_path": [],
+            "form_data": [],
+            "form_urlencoded": [],
+            "url": path,
+        }
+
+    @staticmethod
+    def _extract_apifox_param_rows(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        rows: List[Dict[str, Any]] = []
+        for it in items or []:
+            if not isinstance(it, dict):
+                continue
+            name = str(it.get("name") or "").strip()
+            if not name:
+                continue
+            val_type = str(it.get("type") or "")
+            required = "必填" if bool(it.get("required")) else "非必填"
+            desc = str(it.get("description") or "")
+            example = str(it.get("example") or "")
+            rows.append({
+                "key": name,
+                "value": f"{val_type}; {required}; {desc}; {example}".strip("; ").strip(),
+                "status": True,
+            })
+        return rows
+
+    @staticmethod
+    async def _pull_apifox_project_and_import(
+        db: AsyncSession,
+        api_service_id: int,
+        project_id: str,
+        auth_text: str,
+        user_id: int,
+    ) -> Dict[str, int]:
+        auth_text = str(auth_text or "").strip()
+        is_bearer = auth_text.lower().startswith("bearer ")
+        base_headers = {
+            "x-project-id": str(project_id),
+            "x-client-version": "2.8.2-alpha.2",
+            "accept": "application/json, text/plain, */*",
+            "user-agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/124.0.0.0 Safari/537.36"
+            ),
+        }
+        if is_bearer:
+            base_headers["authorization"] = auth_text
+
+            base_headers["cookie"] = auth_text
+        else:
+            base_headers["cookie"] = auth_text
+
+        def pull_data(url: str) -> Any:
+            r = requests.get(url, headers=base_headers, timeout=30)
+            ct = str(r.headers.get("Content-Type") or "").lower()
+            text = (r.text or "").strip()
+            if r.status_code >= 400:
+                preview = text[:200] if text else "<empty>"
+                raise ValueError(f"Apifox 请求失败（{url} HTTP {r.status_code}, Content-Type: {ct or 'unknown'}），响应片段: {preview}")
+            try:
+                data = r.json()
+            except Exception:
+                preview = text[:200] if text else "<empty>"
+                raise ValueError(f"Apifox 返回非 JSON（{url} HTTP {r.status_code}, Content-Type: {ct or 'unknown'}），响应片段: {preview}")
+            return data.get("data", data)
+
+        tree_data = pull_data(f"https://api.apifox.com/api/v1/projects/{project_id}/api-tree-list?locale=zh-CN")
+        detail_data = pull_data("https://api.apifox.com/api/v1/api-details?locale=zh-CN")
+
+        detail_by_id: Dict[int, Dict[str, Any]] = {}
+        for d in detail_data or []:
+            if isinstance(d, dict) and d.get("id") is not None:
+                detail_by_id[int(d["id"])] = d
+
+        module_nodes = tree_data.get("children", []) if isinstance(tree_data, dict) else (tree_data or [])
+        if (
+            isinstance(module_nodes, list)
+            and module_nodes
+            and isinstance(module_nodes[0], dict)
+            and "children" in module_nodes[0]
+            and "api" not in module_nodes[0]
+        ):
+            module_nodes = module_nodes[0].get("children", [])
+
+        folder_cache: Dict[str, int] = {}
+
+        async def get_or_create_folder(folder_name: str) -> int:
+            key = folder_name.strip() or "默认分组"
+            if key in folder_cache:
+                return folder_cache[key]
+            row = (
+                await db.execute(
+                    select(ApiMenuModel).where(
+                        ApiMenuModel.enabled_flag == 1,
+                        ApiMenuModel.created_by == user_id,
+                        ApiMenuModel.api_service_id == api_service_id,
+                        ApiMenuModel.type == 1,
+                        ApiMenuModel.pid == 0,
+                        ApiMenuModel.name == key,
+                    )
+                )
+            ).scalar_one_or_none()
+            if row:
+                folder_cache[key] = int(row.id)
+                return int(row.id)
+            menu = ApiMenuModel(
+                name=key,
+                type=1,
+                pid=0,
+                api_service_id=api_service_id,
+                status=1,
+                api_id=None,
+                created_by=user_id,
+                updated_by=user_id,
+            )
+            db.add(menu)
+            await db.flush()
+            folder_cache[key] = int(menu.id)
+            return int(menu.id)
+
+        imported_count = 0
+        updated_count = 0
+        folder_names = set()
+
+        for module_data in module_nodes or []:
+            if not isinstance(module_data, dict):
+                continue
+            folder_name = str(module_data.get("name") or "默认分组")
+            folder_id = await get_or_create_folder(folder_name)
+            folder_names.add(folder_name)
+
+            for node in module_data.get("children", []) or []:
+                if not isinstance(node, dict) or not isinstance(node.get("api"), dict):
+                    continue
+                api_brief = node.get("api") or {}
+                ext_api_id = api_brief.get("id")
+                detail = detail_by_id.get(int(ext_api_id)) if ext_api_id is not None else {}
+                detail = detail or {}
+
+                method_name = str(api_brief.get("method") or "POST").lower()
+                path = str(api_brief.get("path") or api_brief.get("url") or "/")
+                if not path.startswith("/"):
+                    path = "/" + path
+                api_name = str(api_brief.get("name") or f"{method_name.upper()} {path}")
+                api_desc = str(detail.get("description") or api_brief.get("description") or "")
+
+                params_obj = detail.get("parameters") or {}
+                path_params = ApiAutomationService._extract_apifox_param_rows(params_obj.get("path") or [])
+                query_params = ApiAutomationService._extract_apifox_param_rows(params_obj.get("query") or [])
+                header_params = ApiAutomationService._extract_apifox_param_rows(params_obj.get("header") or [])
+
+                request_body = detail.get("requestBody") or {}
+                req_type = str(request_body.get("type") or "")
+                body_type = 1
+                body: Any = {}
+                form_data: List[Dict[str, Any]] = []
+                if req_type == "application/json":
+                    body_type = 2
+                    body = request_body.get("jsonSchema") or {}
+                elif req_type == "multipart/form-data":
+                    body_type = 3
+                    for p in request_body.get("parameters") or []:
+                        if isinstance(p, dict) and p.get("name"):
+                            form_data.append(
+                                {
+                                    "key": str(p.get("name")),
+                                    "value": "",
+                                    "status": True,
+                                    "data_type": str(p.get("type") or ""),
+                                    "remark": str(p.get("description") or ""),
+                                }
+                            )
+
+                req = {
+                    "params_id": None,
+                    "body": body,
+                    "after": [],
+                    "assert": [],
+                    "before": [],
+                    "config": {"retry": 0, "req_timeout": 5, "res_timeout": 5},
+                    "header": header_params or [{"key": None, "value": None, "status": True}],
+                    "method": ApiAutomationService._doc_method_to_int(method_name),
+                    "params": (path_params + query_params) or [{"key": None, "value": None, "status": True}],
+                    "body_type": body_type,
+                    "file_path": [],
+                    "form_data": form_data or [],
+                    "form_urlencoded": [],
+                    "url": path,
+                }
+
+                same_path_rows = (
+                    await db.execute(
+                        select(ApiModel).where(
+                            ApiModel.enabled_flag == 1,
+                            ApiModel.created_by == user_id,
+                            ApiModel.api_service_id == api_service_id,
+                            ApiModel.url == path,
+                        )
+                    )
+                ).scalars().all()
+
+                target_api = None
+                target_method = int(req.get("method") or 2)
+                for row in same_path_rows:
+                    row_method = int((row.req or {}).get("method") or 2)
+                    if row_method == target_method:
+                        target_api = row
+                        break
+
+                if target_api:
+                    await db.execute(
+                        update(ApiModel)
+                        .where(ApiModel.id == target_api.id, ApiModel.enabled_flag == 1)
+                        .values(req=req, document=detail or api_brief, name=api_name, description=api_desc, updated_by=user_id)
+                    )
+                    api_id = int(target_api.id)
+                    updated_count += 1
+                else:
+                    api_row = ApiModel(
+                        api_service_id=api_service_id,
+                        url=path,
+                        req=req,
+                        document=detail or api_brief,
+                        name=api_name,
+                        description=api_desc,
+                        created_by=user_id,
+                        updated_by=user_id,
+                    )
+                    db.add(api_row)
+                    await db.flush()
+                    api_id = int(api_row.id)
+                    imported_count += 1
+
+                leaf = (
+                    await db.execute(
+                        select(ApiMenuModel).where(
+                            ApiMenuModel.enabled_flag == 1,
+                            ApiMenuModel.created_by == user_id,
+                            ApiMenuModel.api_service_id == api_service_id,
+                            ApiMenuModel.type == 2,
+                            ApiMenuModel.api_id == api_id,
+                        )
+                    )
+                ).scalar_one_or_none()
+
+                if leaf:
+                    await db.execute(
+                        update(ApiMenuModel)
+                        .where(ApiMenuModel.id == leaf.id, ApiMenuModel.enabled_flag == 1)
+                        .values(name=api_name, pid=folder_id, status=1, updated_by=user_id)
+                    )
+                else:
+                    db.add(
+                        ApiMenuModel(
+                            name=api_name,
+                            type=2,
+                            pid=folder_id,
+                            api_service_id=api_service_id,
+                            api_id=api_id,
+                            status=1,
+                            created_by=user_id,
+                            updated_by=user_id,
+                        )
+                    )
+
+        if imported_count + updated_count <= 0:
+            auth_hint = "Bearer Token" if is_bearer else "Cookies"
+            raise ValueError(
+                f"Apifox 接口已请求成功但未解析到可导入接口，请检查项目权限和{auth_hint}是否有效（project_id={project_id}）"
+            )
+
+        await db.commit()
+        return {"imported": imported_count, "updated": updated_count, "folders": len(folder_names)}
+
+    @staticmethod
+    async def pull_api_doc(db: AsyncSession, body: Dict[str, Any], user_id: int) -> Dict[str, Any]:
+        api_service_id = int(body.get("api_service_id") or 0)
+        doc_url = str(body.get("doc_url") or "").strip()
+        source_type = str(body.get("source_type") or "swagger").strip().lower()
+        doc_content = body.get("doc_content")
+        cookies = str(body.get("cookies") or "").strip()
+
+        if not api_service_id:
+            raise ValueError("api_service_id 不能为空")
+        if not doc_url and not isinstance(doc_content, dict):
+            raise ValueError("文档地址或文档内容至少提供一个")
+        if source_type not in ("swagger", "apifox"):
+            raise ValueError("source_type 仅支持 swagger 或 apifox")
+
+        service = (
+            await db.execute(
+                select(ApiServiceModel).where(
+                    ApiServiceModel.id == api_service_id,
+                    ApiServiceModel.enabled_flag == 1,
+                    ApiServiceModel.created_by == user_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if not service:
+            raise ValueError("服务不存在或无权限")
+
+        apifox_project_pull_error: Optional[str] = None
+       
+        if source_type == "apifox" and "app.apifox.com/project/" in doc_url:
+            project_id = ""
+            try:
+                project_id = doc_url.split("/project/")[1].split("?")[0].split("/")[0].strip()
+            except Exception:
+                project_id = ""
+            if project_id and cookies:
+                try:
+                    stats = await ApiAutomationService._pull_apifox_project_and_import(
+                        db=db,
+                        api_service_id=api_service_id,
+                        project_id=project_id,
+                        cookies=cookies,
+                        user_id=user_id,
+                    )
+                    return {
+                        "source_type": source_type,
+                        "imported": int(stats.get("imported") or 0),
+                        "updated": int(stats.get("updated") or 0),
+                        "folders": int(stats.get("folders") or 0),
+                        "mode": "apifox_project_url",
+                    }
+                except Exception as e:
+      
+                    apifox_project_pull_error = str(e)
+
+        if isinstance(doc_content, dict):
+            doc_json = doc_content
+        else:
+            try:
+                headers = {
+                    "Accept": "application/json, text/plain, */*",
+                    "User-Agent": (
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/124.0.0.0 Safari/537.36"
+                    ),
+                    "Referer": doc_url,
+                    "Origin": "https://app.apifox.com",
+                }
+                if source_type == "apifox" and cookies:
+                    headers["Cookie"] = cookies
+
+                def try_parse_json_response(resp_obj: requests.Response) -> Optional[Dict[str, Any]]:
+                    ct = str(resp_obj.headers.get("Content-Type") or "").lower()
+                    text_body = resp_obj.text or ""
+                    if "application/json" in ct:
+                        try:
+                            return resp_obj.json()
+                        except Exception:
+                            return None
+                    stripped_text = text_body.strip()
+                    if stripped_text.startswith("{") or stripped_text.startswith("["):
+                        try:
+                            parsed = json.loads(stripped_text)
+                            if isinstance(parsed, dict):
+                                return parsed
+                        except Exception:
+                            return None
+                    return None
+
+                def try_parse_markdown_openapi(text_body: str) -> Optional[Dict[str, Any]]:
+                    """
+                    Apifox 文档页 / 导出页返回 markdown：
+                    - Markdown 中包含 ```yaml ...``` 或 ```yml ...``` 的 OpenAPI 内容
+                    """
+                    import re
+
+                    if not text_body:
+                        return None
+                    m = re.search(r"```(?:yaml|yml)\s*([\s\S]*?)```", text_body, flags=re.IGNORECASE)
+                    if not m:
+                        return None
+                    yaml_text = (m.group(1) or "").strip()
+                    if not yaml_text:
+                        return None
+                    try:
+                        parsed = yaml.safe_load(yaml_text)
+                        return parsed if isinstance(parsed, dict) else None
+                    except Exception:
+                        return None
+
+                resp = requests.get(doc_url, headers=headers, timeout=20)
+                resp.raise_for_status()
+                parsed_json = try_parse_json_response(resp)
+                if parsed_json is not None:
+                    doc_json = parsed_json
+                else:
+                    text = (resp.text or "").strip()
+                    md_parsed = try_parse_markdown_openapi(text)
+                    if isinstance(md_parsed, dict) and (md_parsed.get("paths") or md_parsed.get("openapi") or md_parsed.get("swagger")):
+                        doc_json = md_parsed
+                    else:
+                     
+                        if source_type == "apifox" and "app.apifox.com/project/" in doc_url:
+                            import re
+                            m = re.search(r"/project/(\d+)", doc_url)
+                            project_id = m.group(1) if m else ""
+                            candidates: List[str] = []
+                            if project_id:
+                                candidates.extend([
+                                    f"https://api.apifox.com/api/v1/projects/{project_id}/export-openapi",
+                                    f"https://api.apifox.com/api/v1/projects/{project_id}/openapi",
+                                    f"https://app.apifox.com/api/v1/projects/{project_id}/export-openapi",
+                                    f"https://app.apifox.com/api/v1/projects/{project_id}/openapi",
+                                ])
+                            for c in candidates:
+                                try:
+                                    rr = requests.get(c, headers=headers, timeout=20)
+                                    if rr.status_code >= 400:
+                                        continue
+                                    cand_json = try_parse_json_response(rr)
+                                    if isinstance(cand_json, dict):
+                                        if cand_json.get("paths") or cand_json.get("apis") or (cand_json.get("data") or {}).get("paths") or (cand_json.get("data") or {}).get("apis"):
+                                            doc_json = cand_json
+                                            break
+                                except Exception:
+                                    continue
+                            else:
+                                preview = text[:200] if text else "<empty>"
+                                raise ValueError(
+                                    "当前项目地址返回 HTML，且自动探测 JSON 导出接口失败。"
+                                    f"请确认 Cookies 可用，或填写可直接返回 JSON 的导出地址。响应片段: {preview}"
+                                )
+                        else:
+                            content_type = str(resp.headers.get("Content-Type") or "").lower()
+                            preview = text[:200] if text else "<empty>"
+                            if source_type == "apifox" and "app.apifox.com/project/" in doc_url:
+                          
+                                extra = f"；Apifox 专用拉取错误: {apifox_project_pull_error}" if apifox_project_pull_error else ""
+                                raise ValueError(
+                                    "Apifox 项目页返回的是 Markdown 页面而非 OpenAPI 文档。"
+                                    f"{extra}；响应片段: {preview}"
+                                )
+                            raise ValueError(
+                                f"返回内容不是 JSON（HTTP {resp.status_code}, Content-Type: {content_type or 'unknown'}），响应片段: {preview}"
+                            )
+            except Exception as e:
+                raise ValueError(f"拉取文档失败: {str(e)}")
+
+        # 兼容多种文档结构：
+        paths: Dict[str, Any] = {}
+        candidates = [
+            doc_json.get("paths"),
+            (doc_json.get("data") or {}).get("paths") if isinstance(doc_json.get("data"), dict) else None,
+            ((doc_json.get("data") or {}).get("openapi") or {}).get("paths")
+            if isinstance(doc_json.get("data"), dict) and isinstance((doc_json.get("data") or {}).get("openapi"), dict)
+            else None,
+            (doc_json.get("openapi") or {}).get("paths") if isinstance(doc_json.get("openapi"), dict) else None,
+        ]
+        for c in candidates:
+            if isinstance(c, dict) and c:
+                paths = c
+                break
+
+        if not paths:
+            apis = doc_json.get("apis")
+            if not isinstance(apis, list):
+                data = doc_json.get("data") or {}
+                apis = data.get("apis") if isinstance(data, dict) else None
+            if isinstance(apis, list) and apis:
+                stats = await ApiAutomationService.handle_gitlab_import(db, apis, api_service_id, user_id)
+                return {
+                    "source_type": source_type,
+                    "imported": int(stats.get("imported") or 0),
+                    "updated": int(stats.get("updated") or 0),
+                    "folders": int(stats.get("folders") or 0),
+                    "mode": "apifox_apis",
+                }
+            # 兜底：返回结构摘要，便于定位导出格式变化
+            top_keys = list(doc_json.keys()) if isinstance(doc_json, dict) else []
+            data_keys = list((doc_json.get("data") or {}).keys()) if isinstance(doc_json, dict) and isinstance(doc_json.get("data"), dict) else []
+            raise ValueError(
+                "文档中未找到可解析接口（paths/apis），请确认 URL、Cookies 或导出文件格式；"
+                f"top_keys={top_keys[:20]}, data_keys={data_keys[:20]}"
+            )
+
+        folder_cache: Dict[str, int] = {}
+
+        async def get_or_create_folder(folder_name: str) -> int:
+            key = folder_name.strip() or "默认分组"
+            if key in folder_cache:
+                return folder_cache[key]
+            row = (
+                await db.execute(
+                    select(ApiMenuModel).where(
+                        ApiMenuModel.enabled_flag == 1,
+                        ApiMenuModel.created_by == user_id,
+                        ApiMenuModel.api_service_id == api_service_id,
+                        ApiMenuModel.type == 1,
+                        ApiMenuModel.pid == 0,
+                        ApiMenuModel.name == key,
+                    )
+                )
+            ).scalar_one_or_none()
+            if row:
+                folder_cache[key] = int(row.id)
+                return int(row.id)
+            menu = ApiMenuModel(
+                name=key,
+                type=1,
+                pid=0,
+                api_service_id=api_service_id,
+                status=1,
+                api_id=None,
+                created_by=user_id,
+                updated_by=user_id,
+            )
+            db.add(menu)
+            await db.flush()
+            folder_cache[key] = int(menu.id)
+            return int(menu.id)
+
+        imported_count = 0
+        updated_count = 0
+        folder_names = set()
+
+        for raw_path, path_item in paths.items():
+            if not isinstance(path_item, dict):
+                continue
+            api_path = str(raw_path or "/")
+            if not api_path.startswith("/"):
+                api_path = "/" + api_path
+            
+            while api_path.startswith("//"):
+                api_path = api_path[1:]
+
+            for method in ("get", "post", "put", "delete", "patch", "options"):
+                operation = path_item.get(method)
+                if not isinstance(operation, dict):
+                    continue
+
+                tags = operation.get("tags") or []
+                folder_name = str(tags[0] if tags else "默认分组")
+                folder_id = await get_or_create_folder(folder_name)
+                folder_names.add(folder_name)
+
+                req = ApiAutomationService._build_req_from_openapi(api_path, method, operation)
+                api_name = str(operation.get("summary") or operation.get("operationId") or f"{method.upper()} {api_path}")
+                api_desc = str(operation.get("description") or "")
+
+                same_path_rows = (
+                    await db.execute(
+                        select(ApiModel).where(
+                            ApiModel.enabled_flag == 1,
+                            ApiModel.created_by == user_id,
+                            ApiModel.api_service_id == api_service_id,
+                            ApiModel.url == api_path,
+                        )
+                    )
+                ).scalars().all()
+
+                target_api = None
+                target_method = int(req.get("method") or 2)
+                for row in same_path_rows:
+                    row_method = int((row.req or {}).get("method") or 2)
+                    if row_method == target_method:
+                        target_api = row
+                        break
+
+                if target_api:
+                    await db.execute(
+                        update(ApiModel)
+                        .where(ApiModel.id == target_api.id, ApiModel.enabled_flag == 1)
+                        .values(req=req, document=operation, name=api_name, description=api_desc, updated_by=user_id)
+                    )
+                    api_id = int(target_api.id)
+                    updated_count += 1
+                else:
+                    api_row = ApiModel(
+                        api_service_id=api_service_id,
+                        url=api_path,
+                        req=req,
+                        document=operation,
+                        name=api_name,
+                        description=api_desc,
+                        created_by=user_id,
+                        updated_by=user_id,
+                    )
+                    db.add(api_row)
+                    await db.flush()
+                    api_id = int(api_row.id)
+                    imported_count += 1
+
+                leaf = (
+                    await db.execute(
+                        select(ApiMenuModel).where(
+                            ApiMenuModel.enabled_flag == 1,
+                            ApiMenuModel.created_by == user_id,
+                            ApiMenuModel.api_service_id == api_service_id,
+                            ApiMenuModel.type == 2,
+                            ApiMenuModel.api_id == api_id,
+                        )
+                    )
+                ).scalar_one_or_none()
+
+                if leaf:
+                    await db.execute(
+                        update(ApiMenuModel)
+                        .where(ApiMenuModel.id == leaf.id, ApiMenuModel.enabled_flag == 1)
+                        .values(name=api_name, pid=folder_id, status=1, updated_by=user_id)
+                    )
+                else:
+                    db.add(
+                        ApiMenuModel(
+                            name=api_name,
+                            type=2,
+                            pid=folder_id,
+                            api_service_id=api_service_id,
+                            api_id=api_id,
+                            status=1,
+                            created_by=user_id,
+                            updated_by=user_id,
+                        )
+                    )
+
+        await db.commit()
+        return {
+            "source_type": source_type,
+            "imported": imported_count,
+            "updated": updated_count,
+            "folders": len(folder_names),
+        }
 
     @staticmethod
     async def add_menu(db: AsyncSession, body: Dict[str, Any], user_id: int) -> None:
@@ -2480,7 +3196,7 @@ class ApiAutomationService:
         return handle_object(body_params or [])
 
     @staticmethod
-    async def handle_gitlab_import(db: AsyncSession, apis: List[Dict[str, Any]], service_id: int, user_id: int) -> None:
+    async def handle_gitlab_import(db: AsyncSession, apis: List[Dict[str, Any]], service_id: int, user_id: int) -> Dict[str, int]:
         service = (
             await db.execute(select(ApiServiceModel).where(ApiServiceModel.id == service_id, ApiServiceModel.enabled_flag == 1))
         ).scalar_one()
@@ -2521,14 +3237,20 @@ class ApiAutomationService:
             await db.flush()
             return menu.id
 
+        imported_count = 0
+        updated_count = 0
+        folder_names = set()
+
         for i in apis or []:
             if int(i.get("isFolder") or 0) != 1:
                 continue
             first_id = await get_or_create_menu(i.get("name") or "", 0, 0)
+            folder_names.add(str(i.get("name") or ""))
             for j in i.get("items") or []:
                 if int(j.get("isFolder") or 0) != 1:
                     continue
                 menu_id = await get_or_create_menu(j.get("name") or "", 1, first_id)
+                folder_names.add(str(j.get("name") or ""))
                 for k in j.get("items") or []:
                     try:
                         body_type, method = await ApiAutomationService._gitlab_handle_data(k.get("contentType") or "", k.get("httpMethod") or "")
@@ -2598,6 +3320,7 @@ class ApiAutomationService:
                                 )
                             )
                             api_id = api_row.id
+                            updated_count += 1
                         else:
                             req = {
                                 "body_type": body_type,
@@ -2624,6 +3347,7 @@ class ApiAutomationService:
                             db.add(api_value)
                             await db.flush()
                             api_id = api_value.id
+                            imported_count += 1
 
                         # 菜单叶子节点（type=2）
                         leaf_name = k.get("name") or url
@@ -2655,6 +3379,7 @@ class ApiAutomationService:
                     except Exception:
                         continue
         await db.commit()
+        return {"imported": imported_count, "updated": updated_count, "folders": len(folder_names)}
 
     @staticmethod
     async def service_api_update(db: AsyncSession, body: Dict[str, Any]) -> None:

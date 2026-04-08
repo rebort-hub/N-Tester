@@ -391,8 +391,10 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, FormInstance } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { aiCaseApi, aiExecutionRecordApi } from '/@/api/v1/ai_intelligence'
-import { uiProjectApi } from '/@/api/v1/ui_automation'
+import { useUiAutomationApi } from '/@/api/v1/ui_automation'
 import type { AICase, AICaseForm, AIExecutionRecord } from '/@/types/ai_intelligence'
+
+const { uiProjectApi } = useUiAutomationApi()
 
 // 查询表单
 const queryForm = reactive({

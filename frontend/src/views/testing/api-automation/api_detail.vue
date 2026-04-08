@@ -33,30 +33,6 @@
 								<el-button type="primary" plain @click="showApiDoc" style="margin-right: 4px">接口文档</el-button>
 								<el-button type="success" plain @click="showDebugRecord" style="margin-right: 4px">调试记录</el-button>
 								<el-button type="warning" plain @click="showEditRecord">编辑记录</el-button>
-								<el-dropdown @command="handleToolboxCommand" style="margin-left: 8px">
-									<el-button type="info" size="small">
-										工具箱 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-									</el-button>
-									<template #dropdown>
-										<el-dropdown-menu>
-											<el-dropdown-item command="env_management">
-												<el-tag type="primary" effect="dark" size="small">环境</el-tag>&nbsp;环境管理
-											</el-dropdown-item>
-											<el-dropdown-item command="error_code">
-												<el-tag type="warning" effect="dark" size="small">码</el-tag>&nbsp;错误码管理
-											</el-dropdown-item>
-											<el-dropdown-item command="public_functions">
-												<el-tag type="success" effect="dark" size="small">函</el-tag>&nbsp;公共函数
-											</el-dropdown-item>
-											<el-dropdown-item command="direct_db">
-												<el-tag type="info" effect="dark" size="small">DB</el-tag>&nbsp;直连数据库
-											</el-dropdown-item>
-											<el-dropdown-item command="params_dependency">
-												<el-tag type="danger" effect="dark" size="small">参</el-tag>&nbsp;参数依赖
-											</el-dropdown-item>
-										</el-dropdown-menu>
-									</template>
-								</el-dropdown>
 							</div>
 						</div>
 					</div>

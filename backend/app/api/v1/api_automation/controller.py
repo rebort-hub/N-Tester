@@ -921,6 +921,21 @@ async def api_update_list(
         return error_response(f"接口请求异常，原因是：{str(e)}")
 
 
+@router.post("/pull_api_doc")
+async def pull_api_doc(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id),
+):
+    """按文档地址拉取并解析 Swagger/Apifox 到接口树"""
+    try:
+        body = await body_to_json(request)
+        data = await ApiAutomationService.pull_api_doc(db, body or {}, current_user_id)
+        return success_response(data, message="拉取并解析成功")
+    except Exception as e:
+        return error_response(f"接口请求异常，原因是：{str(e)}")
+
+
 @router.post("/api_script_list")
 async def get_api_script_list(
     request: Request,

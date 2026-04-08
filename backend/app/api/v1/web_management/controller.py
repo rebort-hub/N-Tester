@@ -379,6 +379,38 @@ async def stop_web_script(
         return error_response(f"接口请求异常，原因是：{str(e)}")
 
 
+@router.post("/web/stop_web_result")
+async def stop_web_result(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id),
+):
+    """停止一次 Web 执行（按 result_id 停止并更新状态）"""
+    try:
+        body = await body_to_json(request)
+        result_id = str(body["result_id"])
+        res = await WebManagementService.stop_web_result(db, result_id=result_id, user_id=current_user_id)
+        return success_response(res, message="请求成功")
+    except Exception as e:
+        return error_response(f"接口请求异常，原因是：{str(e)}")
+
+
+@router.post("/web/del_web_result")
+async def del_web_result(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id),
+):
+    """删除一次 Web 执行记录（按 result_id）"""
+    try:
+        body = await body_to_json(request)
+        result_id = str(body["result_id"])
+        res = await WebManagementService.del_web_result(db, result_id=result_id, user_id=current_user_id)
+        return success_response(res, message="请求成功")
+    except Exception as e:
+        return error_response(f"接口请求异常，原因是：{str(e)}")
+
+
 @router.post("/web/get_web_result")
 async def get_web_result(
     request: Request,

@@ -6,7 +6,6 @@ from typing import List
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-
 from app.api.v1.projects.crud import ProjectCRUD, ProjectMemberCRUD, ProjectEnvironmentCRUD
 from app.api.v1.projects.schema import (
     ProjectCreateSchema, ProjectUpdateSchema, ProjectOutSchema, ProjectQuerySchema,

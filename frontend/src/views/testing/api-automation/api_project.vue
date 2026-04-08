@@ -81,7 +81,42 @@
 						<span class="service-title">{{ current_project?.name }} - 服务详情</span>
 					</div>
 					<div class="service-topbar-right">
-						<el-select v-model="env_id" placeholder="选择环境" style="width: 150px;">
+						<div class="doc-import-row">
+							<el-select v-model="doc_source_type" placeholder="文档来源" class="doc-source-select">
+								<el-option label="Swagger" value="swagger" />
+								<el-option label="Apifox" value="apifox" />
+							</el-select>
+							<!-- 仅隐藏上传入口 UI，保留上传解析逻辑 -->
+							<!--
+							<el-upload
+								v-if="doc_source_type === 'apifox'"
+								:show-file-list="false"
+								:auto-upload="false"
+								:on-change="handleApifoxFileChange"
+								accept=".json,application/json"
+							>
+								<el-button type="success" size="small">导入Apifox文件</el-button>
+							</el-upload>
+							-->
+							<el-input
+								v-model="doc_source_url"
+								:placeholder="doc_source_type === 'apifox' ? '输入 Apifox 文档URL（必填）' : '输入 Swagger 文档URL（JSON）'"
+								clearable
+								class="doc-url-input"
+							/>
+							<el-input
+								v-if="doc_source_type === 'apifox'"
+								v-model="doc_source_cookies"
+								placeholder="Apifox Cookies（必填）"
+								clearable
+								class="doc-cookie-input"
+							/>
+							<el-button type="primary" :loading="pulling_doc" size="small" @click="handlePullApiDoc">
+								拉取并解析
+							</el-button>
+						</div>
+						<div class="service-tools-row">
+							<el-select v-model="env_id" placeholder="选择环境" style="width: 150px;">
 							<el-option v-for="env in env_list" :key="env.id" :label="env.name" :value="env.id" />
 						</el-select>
 						<el-button :icon="Setting" type="primary" size="small" style="margin-left: 8px" @click="openEnvManage">
@@ -117,6 +152,7 @@
 							</template>
 							<ApiVarPopover />
 						</el-popover>
+						</div>
 					</div>
 				</div>
 			</el-card>
@@ -411,6 +447,7 @@ import {
 	save_env,
 	api_db_list,
 	edit_menu,
+	pull_api_doc,
 } from '/@/api/v1/api_automation';
 
 type ShowType = 'project' | 'service_detail' | 'scene_manage' | 'result_list';
@@ -593,6 +630,11 @@ const env_id = ref<any>(null);
 const params_list = ref<any[]>([{ name: "", id: null }]);
 const local_db_list = ref<any[]>([]);
 const selected_service_id = ref<number | null>(null);
+const doc_source_type = ref<'swagger' | 'apifox'>('swagger');
+const doc_source_url = ref('');
+const doc_source_cookies = ref('');
+const apifox_doc_content = ref<Record<string, any> | null>(null);
+const pulling_doc = ref(false);
 
 const loadParamsSelect = async () => {
 	try {
@@ -810,6 +852,63 @@ const deleteCurrentService = async () => {
 			console.error('删除服务失败:', e);
 			ElMessage.error('删除服务失败');
 		}
+	}
+};
+
+const handlePullApiDoc = async () => {
+	const serviceId = Number(selected_service_id.value || current_service.value?.id || 0);
+	if (!serviceId) {
+		ElMessage.warning('请先选择服务');
+		return;
+	}
+	if (doc_source_type.value === 'swagger' && !doc_source_url.value.trim()) {
+		ElMessage.warning('请输入 Swagger 文档地址');
+		return;
+	}
+	if (doc_source_type.value === 'apifox' && !doc_source_url.value.trim()) {
+		ElMessage.warning('Apifox 文档 URL 为必填');
+		return;
+	}
+	if (doc_source_type.value === 'apifox' && !doc_source_cookies.value.trim()) {
+		ElMessage.warning('Apifox Cookies 为必填');
+		return;
+	}
+	pulling_doc.value = true;
+	try {
+		const res: any = await pull_api_doc({
+			api_service_id: serviceId,
+			source_type: doc_source_type.value,
+			doc_url: doc_source_url.value.trim() || undefined,
+			cookies: doc_source_type.value === 'apifox' ? (doc_source_cookies.value.trim() || undefined) : undefined,
+			doc_content: doc_source_type.value === 'apifox' ? (apifox_doc_content.value || undefined) : undefined,
+		});
+		if (res?.code === 200) {
+			const d = res.data || {};
+			const imported = Number(d.imported || 0);
+			const updated = Number(d.updated || 0);
+			const folders = Number(d.folders || 0);
+			if (imported + updated <= 0) {
+				ElMessage.warning('解析完成但未识别到可导入接口，请检查导出文件结构或URL/Cookies');
+				return;
+			}
+			ElMessage.success(`解析完成：新增${imported}，更新${updated}，分组${folders}`);
+			await loadServiceDetail();
+		}
+	} finally {
+		pulling_doc.value = false;
+	}
+};
+
+const handleApifoxFileChange = async (uploadFile: any) => {
+	const raw = uploadFile?.raw;
+	if (!raw) return;
+	try {
+		const text = await raw.text();
+		apifox_doc_content.value = JSON.parse(text);
+		ElMessage.success(`已加载文件：${raw.name}`);
+	} catch (e: any) {
+		apifox_doc_content.value = null;
+		ElMessage.error(e?.message || 'Apifox 文件解析失败，请检查 JSON 格式');
 	}
 };
 
@@ -1076,12 +1175,22 @@ onMounted(async () => {
 	display: flex;
 	flex-direction: column;
 	min-height: 0;
+	overflow: auto;
+}
+
+.service-toolbar-card {
+	flex: 0 0 auto;
+}
+
+.service-toolbar-card :deep(.el-card__body) {
+	padding: 12px 16px;
 }
 
 .service-topbar {
 	display: flex;
-	align-items: center;
+	align-items: flex-start;
 	justify-content: space-between;
+	gap: 12px;
 }
 
 .service-topbar-left {
@@ -1096,12 +1205,46 @@ onMounted(async () => {
 	color: var(--el-text-color-primary);
 }
 
+.service-topbar-right {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	flex: 1;
+	min-width: 0;
+}
+
+.doc-import-row {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.service-tools-row {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+}
+
+.doc-source-select {
+	width: 120px;
+}
+
+.doc-url-input {
+	width: 320px;
+}
+
+.doc-cookie-input {
+	width: 320px;
+}
+
 .service-main {
 	display: flex;
 	gap: 10px;
 	margin-top: 10px;
 	flex: 1 1 auto;
 	min-height: 0;
+	padding-bottom: 8px;
 }
 
 .service-left {
@@ -1192,7 +1335,7 @@ onMounted(async () => {
 	width: 100%;
 	padding: 2px 0;
 	position: relative;
-	padding-right: 40px; /* 预留右侧 ... 按钮空间 */
+	padding-right: 52px; /* 增大右侧快捷按钮预留空间 */
 }
 
 .node-content {
@@ -1208,14 +1351,15 @@ onMounted(async () => {
 }
 
 .method-badge {
-	font-size: 12px;
+	font-size: 11px;
 	font-weight: 600;
-	padding: 0 6px;
+	padding: 0 4px;
 	border-radius: 4px;
 	color: #fff;
-	min-width: 40px;
+	min-width: 34px;
 	text-align: center;
-	margin-right: 4px;
+	margin-right: 3px;
+	flex: 0 0 auto;
 }
 
 /* 不同类型节点的图标颜色 */
@@ -1238,6 +1382,9 @@ onMounted(async () => {
 	text-overflow: ellipsis;
 	white-space: nowrap;
 	display: block;
+	font-size: 12px;
+	line-height: 18px;
+	max-width: 160px;
 }
 
 .node-actions {

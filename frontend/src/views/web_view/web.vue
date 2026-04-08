@@ -1211,7 +1211,9 @@ import {
 } from '@element-plus/icons-vue'
 import KoiDialog from '/@/components/koi/KoiDialog.vue'
 import KoiUploadFiles from '/@/components/koi/KoiUploadFiles.vue'
-import {
+import { useWebManagementApi } from '/@/api/v1/web_management'
+
+const {
   web_menu,
   get_web_script,
   menu_script_list,
@@ -1224,7 +1226,7 @@ import {
   save_web_script,
   input_element,
   get_element_select,
-} from '/@/api/v1/web_management'
+} = useWebManagementApi()
 
 // 数据表格加载页面动画
 const loading = ref(false)

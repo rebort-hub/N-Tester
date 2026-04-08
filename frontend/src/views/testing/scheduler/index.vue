@@ -90,6 +90,20 @@
             />
           </template>
         </el-table-column>
+        <el-table-column label="执行类型" width="120" align="center">
+          <template #default="scope">
+            <el-tag size="small" type="info">
+              {{ getTimeTypeLabel(scope.row.time?.type) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="执行状态" width="120" align="center">
+          <template #default="scope">
+            <el-tag :type="getExecuteStatusType(scope.row.latest_status)" size="small">
+              {{ getExecuteStatusLabel(scope.row.latest_status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column
           prop="next_run_at"
           label="下一次执行时间"
@@ -97,8 +111,8 @@
           align="center"
         >
           <template #default="scope">
-            <el-tag v-if="scope.row.next_run_at" type="primary" size="small">
-              {{ scope.row.next_run_at }}
+            <el-tag v-if="scope.row.next_time || scope.row.next_run_at" type="primary" size="small">
+              {{ scope.row.next_time || scope.row.next_run_at }}
             </el-tag>
             <el-tag v-else type="info" size="small">-</el-tag>
           </template>
@@ -109,6 +123,16 @@
           width="100"
           align="center"
         />
+        <el-table-column
+          prop="latest_run_time"
+          label="最近执行时间"
+          min-width="170"
+          align="center"
+        >
+          <template #default="scope">
+            <span>{{ scope.row.latest_run_time || '-' }}</span>
+          </template>
+        </el-table-column>
         <el-table-column
           prop="creation_date"
           label="创建时间"
@@ -157,7 +181,14 @@
     </el-card>
 
       <!-- 新增/编辑任务对话框 -->
-      <el-dialog :title="dialogTitle" v-model="dialogVisible" width="50%" append-to-body>
+      <el-dialog
+        :title="dialogTitle"
+        v-model="dialogVisible"
+        width="50%"
+        append-to-body
+        destroy-on-close
+        class="scheduler-task-dialog"
+      >
         <el-form
           ref="taskFormRef"
           :model="form"
@@ -268,12 +299,12 @@
                 </el-select>
               </el-form-item>
 
-              <el-form-item v-if="form.type === 2" label="测试用例">
+              <el-form-item v-if="form.type === 2" label="测试场景">
                 <el-select
-                  v-model="form.script.web_script_list"
+                  v-model="form.script.web_group_list"
                   multiple
                   filterable
-                  placeholder="请选择测试用例"
+                  placeholder="请选择测试场景"
                   style="width: 80%"
                 >
                   <el-option
@@ -347,8 +378,12 @@
                 <el-date-picker
                   v-model="form.time.run_time"
                   type="datetime"
-                  value-format="yyyy-MM-dd HH:mm:ss"
+                  format="YYYY-MM-DD HH:mm:ss"
+                  value-format="YYYY-MM-DD HH:mm:ss"
                   placeholder="请选择执行时间"
+                  style="width: 100%"
+                  teleported
+                  popper-class="scheduler-datetime-popper"
                 />
               </el-form-item>
 
@@ -437,9 +472,17 @@ import { ref, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus, Search, Refresh, Edit, Delete } from '@element-plus/icons-vue';
 import type { FormInstance } from 'element-plus';
-import { taskSchedulerApi, type SchedulerTask } from '/@/api/v1/task_scheduler';
-import { device_list } from '/@/api/v1/cloud_device';
-import { get_api_script_list, api_env, params_select } from '/@/api/v1/api_automation';
+import { useTaskSchedulerApi, type SchedulerTask } from '/@/api/v1/task_scheduler';
+import { useNotificationConfigApi } from '/@/api/v1/notifications';
+import { useCloudDeviceApi } from '/@/api/v1/cloud_device';
+import { useApiAutomationApi } from '/@/api/v1/api_automation';
+import { useWebManagementApi } from '/@/api/v1/web_management';
+
+const taskSchedulerApi = useTaskSchedulerApi();
+const notificationConfigApi = useNotificationConfigApi();
+const { device_list } = useCloudDeviceApi();
+const { get_api_script_list, api_env, params_select } = useApiAutomationApi();
+const { web_group_select } = useWebManagementApi();
 import { formatDateTime } from '/@/utils/formatTime';
 
 const loading = ref(false);
@@ -458,7 +501,6 @@ const queryParams = reactive({
   status: undefined as number | undefined,
 });
 
-const taskDialogRef = ref<InstanceType<typeof KoiDialog> | null>(null);
 const taskFormRef = ref<FormInstance>();
 const dialogTitle = ref('新增定时任务');
 
@@ -473,7 +515,7 @@ const form = reactive<{
     height: number;
     device: any[];
     app_script_list: number[];
-    web_script_list: number[];
+    web_group_list: number[];
     api_script_list: number[];
     browser: number[];
     env_id: number | null;
@@ -499,7 +541,7 @@ const form = reactive<{
     height: 1080,
     device: [],
     app_script_list: [],
-    web_script_list: [],
+    web_group_list: [],
     api_script_list: [],
     browser: [],
     env_id: null,
@@ -590,25 +632,56 @@ const loadApiParams = async () => {
 
 const loadNotices = async () => {
   try {
-    const res = await taskSchedulerApi.getNoticeList({
-      page: 1,
-      size: 100,
-      status: 1,
+    const res = await notificationConfigApi.getConfigs({
+      is_active: true,
+      skip: 0,
+      limit: 200,
     });
     const data = res.data as any;
-    noticeList.value = data.items || data.records || data.list || data.content || [];
+    noticeList.value =
+      data.content || data.items || data.records || data.list || [];
   } catch {
     noticeList.value = [];
   }
 };
 
-// 目前新架构未直接暴露 app/web 脚本列表接口，这里先占位，后续按需要补充
+const getTimeTypeLabel = (timeType?: number) => {
+  if (timeType === 1) return '执行一次';
+  if (timeType === 2) return '间隔执行';
+  if (timeType === 3) return '每天执行';
+  if (timeType === 4) return '每周执行';
+  return '-';
+};
+
+const getExecuteStatusLabel = (status?: string) => {
+  if (status === 'running') return '执行中';
+  if (status === 'success') return '执行成功';
+  if (status === 'failed') return '执行失败';
+  if (status === 'timeout') return '执行超时';
+  return '未执行';
+};
+
+const getExecuteStatusType = (status?: string) => {
+  if (status === 'running') return 'warning';
+  if (status === 'success') return 'success';
+  if (status === 'failed') return 'danger';
+  if (status === 'timeout') return 'info';
+  return 'info';
+};
+
+// APP 脚本列表后续按业务接口补齐
 const loadAppScripts = async () => {
   appScriptList.value = [];
 };
 
 const loadWebScripts = async () => {
-  webScriptList.value = [];
+  try {
+    const res = await web_group_select({});
+    const data = res.data as any[];
+    webScriptList.value = Array.isArray(data) ? data : [];
+  } catch {
+    webScriptList.value = [];
+  }
 };
 
 const getList = async () => {
@@ -622,7 +695,7 @@ const getList = async () => {
       status: queryParams.status,
     });
     const data = res.data as any;
-    taskList.value = data.items || data.records || data.list || [];
+    taskList.value = data.content || data.items || data.records || data.list || [];
     total.value = data.total || 0;
   } catch (error) {
     console.error(error);
@@ -657,7 +730,7 @@ const resetForm = () => {
     height: 1080,
     device: [],
     app_script_list: [],
-    web_script_list: [],
+    web_group_list: [],
     api_script_list: [],
     browser: [],
     env_id: null,
@@ -731,6 +804,14 @@ const handleEdit = (row: SchedulerTask) => {
   form.status = row.status;
   form.description = row.description || '';
   form.script = (row.script as any) || {};
+  // 兼容历史数据：旧字段 web_script_list 迁移为 web_group_list（场景）
+  if (
+    form.type === 2 &&
+    !Array.isArray(form.script.web_group_list) &&
+    Array.isArray((form.script as any).web_script_list)
+  ) {
+    form.script.web_group_list = (form.script as any).web_script_list;
+  }
   form.time = (row.time as any) || {};
   form.notice = (row.notice as any) || { status: 0, notice_id: null };
   Promise.all([
@@ -773,7 +854,10 @@ const submitForm = async () => {
       ElMessage.error('请选择任务类型');
       return;
     }
-
+    if (form.time.type === 1 && !String(form.time.run_time || '').trim()) {
+      ElMessage.error('请选择执行时间');
+      return;
+    }
 
     const payload: any = {
       name: form.name,
@@ -784,6 +868,10 @@ const submitForm = async () => {
       time: form.time,
       notice: form.notice,
     };
+    // WEB 场景模式：仅选择场景；为兼容旧后端字段，同时回填 web_script_list
+    if (form.type === 2 && Array.isArray(form.script.web_group_list)) {
+      payload.script.web_script_list = [...form.script.web_group_list];
+    }
 
     if (Array.isArray(form.script.device) && deviceList.value.length) {
       const deviceDetail = form.script.device
@@ -881,6 +969,17 @@ onMounted(() => {
 /* 确保表单项有足够的底部间距来显示错误信息 */
 :deep(.el-form-item) {
   margin-bottom: 22px;
+}
+
+/* 弹窗内日期选择器：避免被遮挡、保证可点选 */
+.scheduler-task-dialog :deep(.el-dialog__body) {
+  overflow: visible;
+}
+</style>
+
+<style>
+.scheduler-datetime-popper {
+  z-index: 4000 !important;
 }
 </style>
 

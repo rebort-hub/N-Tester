@@ -128,7 +128,9 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { apiEnvironmentApi } from '/@/api/v1/api_testing'
+import { useApiTestingApi } from '/@/api/v1/api_testing'
+
+const { apiEnvironmentApi } = useApiTestingApi()
 
 const props = defineProps<{
   modelValue: boolean

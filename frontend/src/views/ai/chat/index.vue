@@ -74,6 +74,37 @@
           <h2>{{ currentConversation?.title || '新对话' }}</h2>
         </div>
         <div class="navbar-right">
+          <div class="chat-options">
+            <el-select
+              v-model="selectedProjectId"
+              placeholder="项目"
+              size="small"
+              style="width: 140px"
+              @change="handleProjectChange"
+            >
+              <el-option v-for="p in projects" :key="p.id" :label="p.name" :value="p.id" />
+            </el-select>
+            <el-switch v-model="useKnowledgeBase" size="small" />
+            <el-select
+              v-model="selectedKnowledgeBaseId"
+              placeholder="知识库来源"
+              size="small"
+              style="width: 180px"
+              :disabled="!useKnowledgeBase"
+            >
+              <el-option v-for="kb in knowledgeBases" :key="kb.id" :label="kb.name" :value="Number(kb.id)" />
+            </el-select>
+            <el-switch v-model="useMcp" size="small" />
+            <el-select
+              v-model="selectedMcpConfigId"
+              placeholder="MCP配置"
+              size="small"
+              style="width: 160px"
+              :disabled="!useMcp"
+            >
+              <el-option v-for="m in mcpConfigs" :key="m.id" :label="m.name" :value="m.id" />
+            </el-select>
+          </div>
           <div class="connection-status">
             <el-icon :class="['status-icon', isWsConnected ? 'connected' : 'disconnected']">
               <Connection v-if="isWsConnected" />
@@ -81,6 +112,7 @@
             </el-icon>
             <span class="status-text">{{ isWsConnected ? '已连接' : '未连接' }}</span>
           </div>
+          <el-button size="small" @click="openMcpRecords">执行记录</el-button>
           <el-tag v-if="messages.length > 0" size="small" type="info">
             {{ messages.length }} 条消息
           </el-tag>
@@ -354,6 +386,36 @@
         <el-button type="primary" @click="handleSaveTitle">确定</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog
+      v-model="mcpRecordDialogVisible"
+      title="MCP 执行记录"
+      width="860px"
+    >
+      <el-table v-loading="mcpRecordLoading" :data="mcpRecords" size="small" max-height="520">
+        <el-table-column prop="creation_date" label="时间" width="170">
+          <template #default="{ row }">{{ formatTime(row.creation_date) }}</template>
+        </el-table-column>
+        <el-table-column prop="phase" label="阶段" width="100" />
+        <el-table-column prop="status" label="状态" width="90">
+          <template #default="{ row }">
+            <el-tag :type="row.status === 'success' ? 'success' : row.status === 'skipped' ? 'info' : 'danger'" size="small">
+              {{ row.status }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="tool_name" label="工具" width="180" show-overflow-tooltip />
+        <el-table-column prop="duration_ms" label="耗时(ms)" width="90" />
+        <el-table-column label="详情" min-width="260" show-overflow-tooltip>
+          <template #default="{ row }">
+            {{ row.error_message || row.output_summary || '-' }}
+          </template>
+        </el-table-column>
+      </el-table>
+      <template #footer>
+        <el-button @click="mcpRecordDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -382,6 +444,8 @@ import {
 import { useConversationApi } from '/@/api/v1/ai/conversation'
 import type { ConversationData, MessageData } from '/@/api/v1/ai/conversation'
 import { useFileApi } from '/@/api/v1/common/file'
+import { useProjectApi } from '/@/api/v1/projects/project'
+import { projectPlatformApi } from '/@/api/v1/projects/platform'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import hljs from 'highlight.js'
@@ -393,6 +457,7 @@ defineOptions({
 
 const conversationApi = useConversationApi()
 const fileApi = useFileApi()
+const projectApi = useProjectApi()
 
 // 配置 marked 使用 highlight.js
 marked.setOptions({
@@ -439,8 +504,19 @@ const hasMoreMessages = ref(true)
 const currentPage = ref(1)
 const pageSize = 20
 const streamingMessage = ref<MessageData | null>(null)  // 正在流式接收的消息
-const wsConnection = ref<{ ws: WebSocket; send: (content: string) => void; close: () => void } | null>(null)  // WebSocket 连接
+const wsConnection = ref<{ ws: WebSocket; send: (payload: any) => void; close: () => void } | null>(null)  // WebSocket 连接
 const isWsConnected = ref(false)  // WebSocket 真实连接状态
+const projects = ref<Array<{ id: number; name: string }>>([])
+const selectedProjectId = ref<number | null>(null)
+const useKnowledgeBase = ref(false)
+const selectedKnowledgeBaseId = ref<number | null>(null)
+const knowledgeBases = ref<any[]>([])
+const useMcp = ref(false)
+const selectedMcpConfigId = ref<number | null>(null)
+const mcpConfigs = ref<any[]>([])
+const mcpRecordDialogVisible = ref(false)
+const mcpRecordLoading = ref(false)
+const mcpRecords = ref<any[]>([])
 
 // 性能优化：限制渲染的消息数量
 const maxRenderedMessages = 100 // 最多渲染100条消息
@@ -486,6 +562,64 @@ const filteredConversations = computed(() => {
  */
 const handleSearch = () => {
   // 搜索逻辑已通过 computed 实现
+}
+
+const openMcpRecords = async () => {
+  if (!currentConversationId.value) {
+    ElMessage.warning('请先选择对话')
+    return
+  }
+  mcpRecordDialogVisible.value = true
+  mcpRecordLoading.value = true
+  try {
+    const res: any = await conversationApi.getMcpRecords(currentConversationId.value, { limit: 100 })
+    if (res?.code === 200) {
+      mcpRecords.value = res.data?.records || []
+    }
+  } catch (e: any) {
+    ElMessage.error(e?.message || '获取执行记录失败')
+  } finally {
+    mcpRecordLoading.value = false
+  }
+}
+
+const loadProjectOptions = async () => {
+  try {
+    const res: any = await projectApi.getList({ page: 1, page_size: 50 })
+    if (res?.code === 200 && res.data?.items) {
+      projects.value = res.data.items
+      const stored = localStorage.getItem('defaultProjectId')
+      if (stored && projects.value.some((p) => p.id === Number(stored))) {
+        selectedProjectId.value = Number(stored)
+      } else if (projects.value.length) {
+        selectedProjectId.value = projects.value[0].id
+      }
+      await handleProjectChange()
+    }
+  } catch (e: any) {
+    ElMessage.error(e?.message || '加载项目失败')
+  }
+}
+
+const handleProjectChange = async () => {
+  if (!selectedProjectId.value) return
+  localStorage.setItem('defaultProjectId', String(selectedProjectId.value))
+  try {
+    const [kbRes, mcpRes]: any = await Promise.all([
+      projectPlatformApi.knowledge.bases.list(selectedProjectId.value, { page: 1, page_size: 200 }),
+      projectPlatformApi.mcp.list(selectedProjectId.value, { page: 1, page_size: 200, is_enabled: true })
+    ])
+    knowledgeBases.value = kbRes?.data?.items || []
+    if (!knowledgeBases.value.some((kb: any) => Number(kb.id) === selectedKnowledgeBaseId.value)) {
+      selectedKnowledgeBaseId.value = knowledgeBases.value.length ? Number(knowledgeBases.value[0].id) : null
+    }
+    mcpConfigs.value = mcpRes?.data?.items || []
+    if (!mcpConfigs.value.some((m: any) => m.id === selectedMcpConfigId.value)) {
+      selectedMcpConfigId.value = mcpConfigs.value.length ? mcpConfigs.value[0].id : null
+    }
+  } catch (e: any) {
+    ElMessage.error(e?.message || '加载知识库/MCP配置失败')
+  }
 }
 
 /**
@@ -868,8 +1002,16 @@ const handleSendMessage = async () => {
     await nextTick()
     scrollToBottom()
     
-    // 通过 WebSocket 发送消息（发送原始内容，不包含附件信息的文本）
-    wsConnection.value.send(content || '[发送了附件]')
+    // 通过 WebSocket 发送消息，同时携带知识库/MCP选项
+    wsConnection.value.send({
+      content: content || '[发送了附件]',
+      attachments: attachmentData,
+      project_id: selectedProjectId.value || undefined,
+      use_knowledge_base: useKnowledgeBase.value && !!selectedKnowledgeBaseId.value,
+      knowledge_base_id: selectedKnowledgeBaseId.value || undefined,
+      use_mcp: useMcp.value && !!selectedMcpConfigId.value,
+      mcp_config_id: selectedMcpConfigId.value || undefined
+    })
   } catch (error: any) {
     ElMessage.error(error.message || '发送消息失败')
     // 移除临时消息
@@ -1155,7 +1297,7 @@ const handleFilesSelected = async (files: File[], isImage: boolean) => {
           attachments.value[index] = {
             ...attachments.value[index],
             uploading: false,
-            url: response.data.file_path || response.data.url
+            url: response.data.file_url || response.data.url || response.data.file_path
           }
         }
         ElMessage.success(`${file.name} 上传成功`)
@@ -1229,6 +1371,7 @@ const formatTime = (dateStr: string) => {
 // 初始化
 onMounted(() => {
   loadConversations()
+  loadProjectOptions()
 })
 
 // 组件卸载时关闭 WebSocket
@@ -1369,6 +1512,12 @@ onUnmounted(() => {
         display: flex;
         gap: 16px;
         align-items: center;
+
+        .chat-options {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+        }
 
         .connection-status {
           display: flex;

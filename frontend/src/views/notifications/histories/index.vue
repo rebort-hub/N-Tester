@@ -210,13 +210,17 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, View, Delete } from '@element-plus/icons-vue'
 import { 
-  notificationHistoryApi, 
-  notificationConfigApi,
-  notificationSendApi,
+  useNotificationHistoryApi, 
+  useNotificationConfigApi,
+  useNotificationSendApi,
   type NotificationHistory,
   type NotificationConfig 
 } from '/@/api/v1/notifications'
 import { formatDateTime } from '/@/utils/formatTime'
+
+const notificationHistoryApi = useNotificationHistoryApi()
+const notificationConfigApi = useNotificationConfigApi()
+const notificationSendApi = useNotificationSendApi()
 
 // 响应式数据
 const loading = ref(true)

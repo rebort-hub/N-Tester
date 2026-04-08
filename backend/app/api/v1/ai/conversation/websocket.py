@@ -5,7 +5,6 @@ import json
 import logging
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.db.sqlalchemy import get_db
 from app.api.v1.system.auth.service import AuthService
 from app.api.v1.system.user.crud import UserCRUD
@@ -136,7 +135,16 @@ async def websocket_chat(
                         
                         try:
                             # 创建请求对象
-                            request = SendMessageRequest(content=content, stream=True)
+                            request = SendMessageRequest(
+                                content=content,
+                                stream=True,
+                                attachments=data.get("attachments"),
+                                project_id=data.get("project_id"),
+                                use_knowledge_base=bool(data.get("use_knowledge_base", False)),
+                                knowledge_base_id=data.get("knowledge_base_id"),
+                                use_mcp=bool(data.get("use_mcp", False)),
+                                mcp_config_id=data.get("mcp_config_id"),
+                            )
                             
                             # 调用流式消息服务
                             async for event in MessageService.send_message_stream(

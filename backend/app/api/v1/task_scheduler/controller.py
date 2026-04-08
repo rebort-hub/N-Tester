@@ -1,5 +1,4 @@
 """
-定时任务模块 - 控制器
 处理定时任务管理、通知配置等相关API请求
 """
 from fastapi import APIRouter, Depends, Request
@@ -8,7 +7,6 @@ from app.db.sqlalchemy import get_db
 from app.core.dependencies import get_current_user_id
 from app.common.response import success_response, error_response
 from app.utils.common import body_to_json
-
 from .service import TaskSchedulerService
 from .remote_control import send_command, SchedulerRemoteError
 
@@ -222,7 +220,7 @@ async def scheduler_jobs(current_user_id: int = Depends(get_current_user_id)):
 @router.post("/scheduler/reload")
 async def scheduler_reload(current_user_id: int = Depends(get_current_user_id)):
     try:
-        # reload 可能涉及 DB 扫描与重建，放宽超时时间
+        
         data = await send_command("scheduler.reload", timeout_s=30.0)
         return success_response(data)
     except SchedulerRemoteError as e:

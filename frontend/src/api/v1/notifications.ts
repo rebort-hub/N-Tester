@@ -1,7 +1,7 @@
 /**
  * 统一通知系统API接口
  */
-import request from '/@/utils/request'
+import request from '/@/utils/request';
 
 // 通知配置相关接口
 export interface NotificationConfig {
@@ -88,7 +88,8 @@ export interface SendNotificationResponse {
 }
 
 // 通知配置管理API
-export const notificationConfigApi = {
+export function useNotificationConfigApi() {
+  return {
   // 获取配置列表
   getConfigs: (params?: {
     config_type?: string
@@ -161,10 +162,12 @@ export const notificationConfigApi = {
       method: 'post'
     })
   }
+  }
 }
 
 // 通知历史管理API
-export const notificationHistoryApi = {
+export function useNotificationHistoryApi() {
+  return {
   // 获取通知历史
   getHistories: (params?: {
     config_id?: number
@@ -196,10 +199,12 @@ export const notificationHistoryApi = {
       data: { ids }
     })
   }
+  }
 }
 
 // 任务通知设置API
-export const taskNotificationApi = {
+export function useTaskNotificationApi() {
+  return {
   // 获取任务通知设置
   getTaskSettings: (params?: {
     task_id?: number
@@ -249,10 +254,12 @@ export const taskNotificationApi = {
       data: { ids }
     })
   }
+  }
 }
 
 // 发送通知API
-export const notificationSendApi = {
+export function useNotificationSendApi() {
+  return {
   // 发送通知
   sendNotification: (data: SendNotificationRequest) => {
     return request({
@@ -269,4 +276,11 @@ export const notificationSendApi = {
       method: 'get'
     })
   }
+  }
 }
+
+// 兼容旧用法：逐步迁移页面 import 后可移除
+export const notificationConfigApi = useNotificationConfigApi()
+export const notificationHistoryApi = useNotificationHistoryApi()
+export const taskNotificationApi = useTaskNotificationApi()
+export const notificationSendApi = useNotificationSendApi()

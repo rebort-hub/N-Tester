@@ -1,0 +1,12 @@
+2026-04-08 14:37:51 开始执行接口-测试接口 
+2026-04-08 14:37:51 请求地址-url：/ 
+2026-04-08 14:37:51 请求参数-header：{'Content-Type': 'application/json'} 
+2026-04-08 14:37:51 请求体-body：{} 
+2026-04-08 14:37:52 请求结果：{'msg': '接口请求失败', 'exception': "Invalid URL '/': No scheme supplied. Perhaps you meant https:///?"} 
+2026-04-08 14:37:53 接口-测试接口执行完成 
+2026-04-08 14:37:56 开始执行接口-测试接口_ 
+2026-04-08 14:37:56 请求地址-url：/9999 
+2026-04-08 14:37:56 请求参数-header：{'Content-Type': 'application/json'} 
+2026-04-08 14:37:56 请求体-body：{} 
+2026-04-08 14:37:56 请求结果：{'msg': '接口请求失败', 'exception': "Invalid URL '/9999': No scheme supplied. Perhaps you meant https:///9999?"} 
+2026-04-08 14:37:56 接口-测试接口_执行完成 

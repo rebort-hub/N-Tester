@@ -170,11 +170,13 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Plus } from '@element-plus/icons-vue'
-import { uiProjectApi } from '/@/api/v1/ui_automation'
+import { useUiAutomationApi } from '/@/api/v1/ui_automation'
 import { getProjectList } from '/@/api/v1/project'
 import { useRouter } from 'vue-router'
 import { formatDateTime } from '/@/utils/formatTime'
 import BrowserCheck from './browser-check.vue'
+
+const { uiProjectApi } = useUiAutomationApi()
 
 // 定义组件名称
 defineOptions({

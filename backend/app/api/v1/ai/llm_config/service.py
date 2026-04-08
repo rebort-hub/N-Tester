@@ -8,7 +8,6 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
-
 from app.models.ai.llm_config import LLMConfigModel
 from app.api.v1.ai.llm_config.schema import (
     LLMConfigCreateSchema,
@@ -205,7 +204,7 @@ class LLMConfigService:
         
         logger.info(f"[set_default] 开始设置默认配置: config_id={config_id}, config_name={config.config_name}")
         
-        # 取消所有默认配置（参考 update 方法的实现）
+        # 取消所有默认配置
         logger.info("[set_default] 取消所有默认配置...")
         await cls._unset_all_defaults(db)
         
@@ -235,7 +234,7 @@ class LLMConfigService:
         
         logger.info("[set_default] 提交完成，重新查询配置...")
         
-        # 重新获取更新后的配置（参考 update 方法）
+        # 重新获取更新后的配置
         updated_config = await cls.get_by_id(db, config_id)
         logger.info(f"[set_default] 更新后的配置: ID={updated_config.id}, is_default={updated_config.is_default}")
         

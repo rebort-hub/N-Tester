@@ -134,12 +134,14 @@ import { ref, reactive, onMounted, computed, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, VideoPlay, Document, Back, Folder } from '@element-plus/icons-vue'
-import { uiProjectApi, uiElementGroupApi } from '/@/api/v1/ui_automation'
+import { useUiAutomationApi } from '/@/api/v1/ui_automation'
 import ElementManage from './components/ElementManage.vue'
 import PageObjectManage from './components/PageObjectManage.vue'
 import TestCaseManage from './components/TestCaseManage.vue'
 import TestSuiteManage from './components/TestSuiteManage.vue'
 import ExecutionHistory from './components/ExecutionHistory.vue'
+
+const { uiProjectApi, uiElementGroupApi } = useUiAutomationApi()
 
 const route = useRoute()
 const router = useRouter()

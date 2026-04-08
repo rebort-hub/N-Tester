@@ -42,7 +42,9 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
-import { apiCollectionApi, apiEnvironmentApi } from '/@/api/v1/api_testing'
+import { useApiTestingApi } from '/@/api/v1/api_testing'
+
+const { apiCollectionApi, apiEnvironmentApi } = useApiTestingApi()
 
 const props = defineProps<{
   modelValue: any

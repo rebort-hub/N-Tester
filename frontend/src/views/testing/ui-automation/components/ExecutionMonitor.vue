@@ -136,11 +136,12 @@ import { ref, reactive, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { VideoPause, Refresh, Close, Download, Document } from '@element-plus/icons-vue'
-import { uiExecutionApi } from '/@/api/v1/ui_automation'
+import { useUiAutomationApi } from '/@/api/v1/ui_automation'
 import dayjs from 'dayjs'
 import duration from 'dayjs/plugin/duration'
 
 dayjs.extend(duration)
+const { uiExecutionApi } = useUiAutomationApi()
 
 const props = defineProps<{
   executionId: number

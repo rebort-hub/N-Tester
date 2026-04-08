@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 import json
 import asyncio
-
 from app.db.sqlalchemy import get_db
 from app.api.v1.system.auth.dependencies import get_current_user
 from app.common.response import success_response, error_response
@@ -229,4 +228,23 @@ async def send_message_stream(
             "X-Accel-Buffering": "no"  # 禁用 Nginx 缓冲
         }
     )
+
+
+@router.get("/{conversation_id}/mcp-records", summary="获取MCP执行记录")
+async def get_mcp_records(
+    conversation_id: int,
+    limit: int = Query(50, ge=1, le=200, description="返回数量"),
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    try:
+        records = await MessageService.get_mcp_execution_records(
+            db=db,
+            conversation_id=conversation_id,
+            user_id=current_user.id,
+            limit=limit,
+        )
+        return success_response(data={"records": records, "total": len(records)})
+    except Exception as e:
+        return error_response(message=f"获取MCP执行记录失败: {str(e)}")
 

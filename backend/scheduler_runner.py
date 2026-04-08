@@ -186,7 +186,8 @@ class SchedulerRunner:
                         id=temp_id,
                         name=f"{job.name}(run_now)",
                         jobstore="sqlalchemy",
-                        executor="threadpool",
+                        # async job 需走 AsyncIOExecutor，避免返回 coroutine
+                        executor="default",
                         max_instances=1,
                         replace_existing=True,
                     )

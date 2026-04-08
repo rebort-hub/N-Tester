@@ -421,11 +421,13 @@
 <script setup lang="ts">
 import { ref, watch, computed, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { apiRequestApi } from '/@/api/v1/api_testing'
+import { useApiTestingApi } from '/@/api/v1/api_testing'
 import KeyValueEditor from './KeyValueEditor.vue'
 import AssertionEditor from './AssertionEditor.vue'
 import SSLCertificateDialog from './SSLCertificateDialog.vue'
 import OperationListEditor from './OperationListEditor.vue'
+
+const { apiRequestApi } = useApiTestingApi()
 
 const props = defineProps<{
   modelValue: any

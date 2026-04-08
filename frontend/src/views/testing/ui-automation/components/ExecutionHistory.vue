@@ -348,9 +348,11 @@
 import { ref, reactive, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
 import { Histogram, Refresh, Download, CopyDocument, Document, CircleCheck, CircleClose, TrendCharts, Picture, ArrowDown, Delete } from '@element-plus/icons-vue'
-import { uiExecutionApi } from '/@/api/v1/ui_automation'
+import { useUiAutomationApi } from '/@/api/v1/ui_automation'
 import { formatDateTime } from '/@/utils/formatTime'
 import * as echarts from 'echarts'
+
+const { uiExecutionApi } = useUiAutomationApi()
 
 const props = defineProps<{
   uiProjectId: number

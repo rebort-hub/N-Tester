@@ -1,5 +1,5 @@
 """
-定时任务模块 - 数据模型
+定时数据模型
 """
 from sqlalchemy import Column, String, Integer, Text, JSON, DateTime, Boolean, BigInteger
 from sqlalchemy.sql import func

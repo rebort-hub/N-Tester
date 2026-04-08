@@ -24,7 +24,7 @@ def success_response(
         响应字典
     """
     return {
-        "code": int(code),  # 确保code是整数
+        "code": int(code),
         "message": message,
         "data": data
     }
@@ -47,7 +47,7 @@ def error_response(
         响应字典
     """
     return {
-        "code": int(code),  # 确保code是整数
+        "code": int(code),
         "message": message,
         "data": data
     }

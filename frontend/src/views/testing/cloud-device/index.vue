@@ -308,7 +308,7 @@
 </template>
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import { device_info_list, use_device, stop_device, get_device_log, get_history_list, device_install_app, direct_install_app, add_device, device_performance, sync_stf_devices } from '/@/api/v1/cloud_device';
+import { useCloudDeviceApi } from '/@/api/v1/cloud_device';
 import { ElLoading, ElMessage, ElMessageBox, ElNotification } from 'element-plus';
 import { CircleCheck, CircleClose, View, Pointer } from '@element-plus/icons-vue';
 import * as echarts from 'echarts';
@@ -317,6 +317,19 @@ import devicePlaceholder from '/@/assets/device-placeholder.svg';
 import VueJsonPretty from 'vue-json-pretty';
 import 'vue-json-pretty/lib/styles.css';
 import { mitmproxy_check, mitmproxy_close_agent, mitmproxy_run_log, mitmproxy_single_start, mitmproxy_stop } from '/@/api/v1/mitmproxy';
+
+const {
+  device_info_list,
+  use_device,
+  stop_device,
+  get_device_log,
+  get_history_list,
+  device_install_app,
+  direct_install_app,
+  add_device,
+  device_performance,
+  sync_stf_devices,
+} = useCloudDeviceApi();
 
 // 搜索参数
 const device_type = ref<any>('');

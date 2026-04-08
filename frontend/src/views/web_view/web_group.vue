@@ -387,7 +387,11 @@ import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import KoiCard from '/@/components/koi/KoiCard.vue'
 import KoiDialog from '/@/components/koi/KoiDialog.vue'
-import {
+import { useWebManagementApi } from '/@/api/v1/web_management'
+import commonFunction from '/@/utils/commonFunction'
+import { formatDateTime } from '/@/utils/formatTime'
+
+const {
   web_group_list,
   web_menu,
   group_add_script,
@@ -397,9 +401,7 @@ import {
   run_web_script,
   get_web_result,
   get_web_result_log,
-} from '/@/api/v1/web_management'
-import commonFunction from '/@/utils/commonFunction'
-import { formatDateTime } from '/@/utils/formatTime'
+} = useWebManagementApi()
 
 const { dateFormatYMDHMS } = commonFunction()
 const fmtDateTime = (val: any) => formatDateTime(val)

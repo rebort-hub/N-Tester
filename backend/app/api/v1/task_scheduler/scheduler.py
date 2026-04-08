@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+import inspect
 from datetime import datetime, timedelta, timezone
 from typing import Any, Awaitable, Callable, Optional
 
@@ -21,13 +22,27 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from sqlalchemy import create_engine
-
 from app.corelibs.logger import logger
 from config import config
 
 
 _scheduler: Optional[AsyncIOScheduler] = None
 _execution_cache: dict[str, dict[str, Any]] = {}
+
+
+def _to_json_safe(value: Any) -> Any:
+    
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if inspect.iscoroutine(value):
+        return repr(value)
+    if isinstance(value, dict):
+        return {str(k): _to_json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_to_json_safe(v) for v in value]
+    return repr(value)
 
 
 def get_scheduler() -> AsyncIOScheduler:
@@ -69,8 +84,7 @@ def shutdown_scheduler() -> None:
 
 
 def _add_event_listeners(scheduler: AsyncIOScheduler) -> None:
-    # 避免重复 add_listener
-    # APScheduler 内部不会暴露已注册监听器列表；这里用 running 前的幂等语义即可
+  
     scheduler.add_listener(
         _scheduler_event_listener,
         EVENT_JOB_SUBMITTED | EVENT_JOB_EXECUTED | EVENT_JOB_ERROR | EVENT_JOB_MISSED,
@@ -78,15 +92,7 @@ def _add_event_listeners(scheduler: AsyncIOScheduler) -> None:
 
 
 def _scheduler_event_listener(event) -> None:
-    """
-    记录任务执行日志：将 APScheduler 的事件映射到 `legacy_task_execution_histories`。
-
-    - submitted: 创建 running 记录
-    - executed/error/missed: 更新对应记录
-
-    这里的“对应记录”通过 in-memory cache 关联（job_id -> execution_id）。
-    调度器服务进程重启会清空 cache，但不会影响任务调度；日志会出现“缺少 running 记录时直接补写”的降级行为。
-    """
+   
     job_id = str(getattr(event, "job_id", ""))
     if not job_id:
         return
@@ -118,7 +124,7 @@ def _scheduler_event_listener(event) -> None:
             if event.code == EVENT_JOB_EXECUTED:
                 status = "success"
                 error_message = None
-                result = getattr(event, "retval", None)
+                result = _to_json_safe(getattr(event, "retval", None))
             elif event.code == EVENT_JOB_ERROR:
                 status = "failed"
                 exc = getattr(event, "exception", None)
@@ -164,13 +170,8 @@ def _write_history(
     error_message: Optional[str],
     trigger_type: str,
 ) -> None:
-    """
-    写入执行历史。
-
-    为了让调度器作为独立进程运行，这里使用同步 DB 写入（避免依赖 FastAPI 的 AsyncSession 生命周期）。
-    """
+    
     from sqlalchemy.orm import Session
-
     from app.api.v1.task_scheduler.model import TaskExecutionHistoryModel
 
     sync_engine = create_engine(config.DATABASE_URI_SYNC, pool_pre_ping=True)
@@ -190,6 +191,24 @@ def _write_history(
         session.commit()
 
 
+def _parse_run_at(v: Any) -> datetime:
+    
+    if v is None:
+        raise ValueError("执行时间不能为空")
+    if isinstance(v, datetime):
+        return v
+    s = str(v).strip()
+    if not s:
+        raise ValueError("执行时间不能为空")
+    normalized = s.replace("T", " ", 1)
+    for fmt in ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S"):
+        try:
+            return datetime.strptime(normalized, fmt)
+        except ValueError:
+            continue
+    raise ValueError(f"无法解析执行时间: {s!r}，请使用 YYYY-MM-DD HH:mm:ss 格式")
+
+
 def build_trigger(time_config: dict[str, Any]):
     """
   
@@ -201,7 +220,8 @@ def build_trigger(time_config: dict[str, Any]):
     """
     t = int(time_config.get("type", 0))
     if t == 1:
-        return DateTrigger(run_date=time_config.get("run_time"))
+        run_date = _parse_run_at(time_config.get("run_time"))
+        return DateTrigger(run_date=run_date)
     if t == 2:
         interval_minutes = int(time_config.get("interval", 0))
         return IntervalTrigger(seconds=interval_minutes * 60)
@@ -219,13 +239,14 @@ def build_trigger(time_config: dict[str, Any]):
 def get_next_run_time(job_id: str) -> str:
     scheduler = get_scheduler()
     job = scheduler.get_job(job_id=str(job_id))
-    if not job or not job.next_run_time:
+    next_run_time = getattr(job, "next_run_time", None) if job else None
+    if not next_run_time:
         return ""
     # APScheduler 返回的 next_run_time 通常带 tzinfo；这里统一转北京时间字符串
     try:
-        utc_time = datetime.fromisoformat(str(job.next_run_time))
+        utc_time = datetime.fromisoformat(str(next_run_time))
     except Exception:
-        utc_time = job.next_run_time
+        utc_time = next_run_time
     beijing_time = utc_time.astimezone(timezone(timedelta(hours=8)))
     return beijing_time.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -234,7 +255,7 @@ def add_or_replace_job(job_id: str, func: Callable[..., Awaitable[Any]], trigger
     scheduler = get_scheduler()
     if scheduler.get_job(job_id=str(job_id)):
         scheduler.remove_job(str(job_id))
-    # jobstore 固定走 sqlalchemy，确保任务持久化（独立 scheduler 进程重启可恢复）
+    # jobstore 固定走 sqlalchemy
     scheduler.add_job(
         func,
         trigger=trigger,
@@ -242,7 +263,7 @@ def add_or_replace_job(job_id: str, func: Callable[..., Awaitable[Any]], trigger
         args=args,
         replace_existing=True,
         jobstore="sqlalchemy",
-        executor="threadpool",
+        executor="default",
         max_instances=1,
     )
 

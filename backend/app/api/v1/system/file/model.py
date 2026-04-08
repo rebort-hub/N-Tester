@@ -5,6 +5,9 @@
 from sqlalchemy import Column, String, Integer, DateTime, Text, LargeBinary
 from app.models.base import Base
 
+# MySQL 默认 BLOB 仅 64KB；显式长度映射为 MEDIUMBLOB（16MB），避免较大图片/文件插入失败
+_FILE_CONTENT_MAX = 16 * 1024 * 1024
+
 
 class FileModel(Base):
     """文件模型"""
@@ -25,7 +28,11 @@ class FileModel(Base):
     storage_path = Column(String(500), nullable=True, comment="存储路径")
     
     # 新增：文件内容字段，用于直接存储文件二进制数据
-    file_content = Column(LargeBinary, nullable=True, comment="文件二进制内容（用于数据库存储模式）")
+    file_content = Column(
+        LargeBinary(_FILE_CONTENT_MAX),
+        nullable=True,
+        comment="文件二进制内容（用于数据库存储模式，MEDIUMBLOB 级别）",
+    )
     
     description = Column(Text, nullable=True, comment="文件描述")
     tags = Column(String(500), nullable=True, comment="文件标签")

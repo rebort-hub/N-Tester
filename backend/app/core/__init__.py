@@ -1,6 +1,5 @@
 """
-核心基础设施模块
-提供基础类和通用功能
+核心基础设施模块提供基础类和通用功能
 """
 
 from app.core.base_crud import BaseCRUD

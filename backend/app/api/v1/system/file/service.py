@@ -633,3 +633,31 @@ class FileService:
             )
         
         return file_obj.file_content, file_obj.file_type or "application/octet-stream"
+
+    @classmethod
+    async def read_file_bytes_for_user(
+        cls,
+        file_name: str,
+        current_user_id: int,
+        db: AsyncSession,
+    ) -> Optional[bytes]:
+        """
+        按存储文件名读取字节（database / local），供对话注入附件等内部逻辑使用。
+        无权限或文件不存在返回 None。
+        """
+        crud = FileCRUD(db)
+        file_obj = await crud.get_by_file_name_crud(file_name)
+        if not file_obj:
+            return None
+        if file_obj.is_public == 0 and file_obj.uploaded_by != current_user_id:
+            return None
+        if file_obj.upload_type == "database" and file_obj.file_content:
+            return file_obj.file_content
+        if file_obj.upload_type == "local" and file_obj.file_path:
+            try:
+                if os.path.exists(file_obj.file_path):
+                    with open(file_obj.file_path, "rb") as f:
+                        return f.read()
+            except OSError:
+                return None
+        return None

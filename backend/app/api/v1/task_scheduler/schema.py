@@ -1,5 +1,5 @@
 """
-定时任务模块 - 数据验证模式
+定时数据验证模式
 """
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, Field

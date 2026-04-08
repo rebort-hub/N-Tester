@@ -359,8 +359,10 @@ import {
   Picture,
   ArrowDown
 } from '@element-plus/icons-vue'
-import { uiExecutionApi, uiProjectApi } from '/@/api/v1/ui_automation'
+import { useUiAutomationApi } from '/@/api/v1/ui_automation'
 import { formatDateTime } from '/@/utils/formatTime'
+
+const { uiExecutionApi, uiProjectApi } = useUiAutomationApi()
 
 // 定义组件名称
 defineOptions({

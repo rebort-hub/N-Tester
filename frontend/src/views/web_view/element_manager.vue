@@ -406,7 +406,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { HomeFilled, Folder, MoreFilled, CirclePlus, Edit, Delete } from '@element-plus/icons-vue'
 import KoiCard from '/@/components/koi/KoiCard.vue'
 import KoiDialog from '/@/components/koi/KoiDialog.vue'
-import {
+import { useWebManagementApi } from '/@/api/v1/web_management'
+
+const {
   element_tree,
   add_element_menu,
   edit_element_menu,
@@ -415,7 +417,7 @@ import {
   add_element,
   edit_element,
   del_element,
-} from '/@/api/v1/web_management'
+} = useWebManagementApi()
 
 const treeData = ref<any[]>([])
 const defaultProps = {

@@ -152,8 +152,10 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { get_web_result_report, get_web_result_detail } from '/@/api/v1/web_management'
+import { useWebManagementApi } from '/@/api/v1/web_management'
 import { getBaseApiUrl } from '/@/utils/config'
+
+const { get_web_result_report, get_web_result_detail } = useWebManagementApi()
 
 
 const mediaUrl = (path: string) => path ? `${getBaseApiUrl()}${path}` : ''

@@ -263,7 +263,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, watch, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { apiProjectApi, apiCollectionApi, apiRequestApi, apiEnvironmentApi } from '/@/api/v1/api_testing'
+import { useApiTestingApi } from '/@/api/v1/api_testing'
 import { useProjectApi } from '/@/api/v1/projects/project'
 import RequestEditor from './components/RequestEditor.vue'
 import ApiProjectDialog from './components/ApiProjectDialog.vue'
@@ -273,6 +273,7 @@ import EnvironmentDialog from './components/EnvironmentDialog.vue'
 import TestSuiteDialog from './components/TestSuiteDialog.vue'
 
 const projectApi = useProjectApi()
+const { apiProjectApi, apiCollectionApi, apiRequestApi, apiEnvironmentApi } = useApiTestingApi()
 
 // 项目列表
 const projectList = ref<any[]>([])

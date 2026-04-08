@@ -99,6 +99,7 @@ langgraph==1.0.7
 openai==2.16.0
 anthropic==0.76.0
 browser-use==0.12.0
+langchain-mcp-adapters==0.2.2
 
 # 其他依赖
 anyio==4.12.1

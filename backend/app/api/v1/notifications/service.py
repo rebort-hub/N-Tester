@@ -302,13 +302,47 @@ class NotificationService:
         """发送飞书通知"""
         webhook_url = config.notification_config.get("webhook_url")
         secret = config.notification_config.get("secret")
-        
-        # 构建消息体
+
+        # 飞书使用 post（更美观，支持链接）
+        report_url = ""
+        for line in str(request.content or "").splitlines():
+            if "http://" in line or "https://" in line:
+                # 取该行的第一个 url
+                for token in line.split():
+                    if token.startswith("http://") or token.startswith("https://"):
+                        report_url = token.strip("()[]")
+                        break
+            if report_url:
+                break
+
+        content_blocks: list[list[dict[str, Any]]] = []
+        for line in str(request.content or "").splitlines():
+            if not line.strip():
+                continue
+            # markdown 符号在 post 里不渲染，尽量保留纯文本观感
+            text = (
+                line.replace("**", "")
+                .replace("`", "")
+                .replace("---", "——")
+                .replace("- ", "• ")
+                .lstrip("> ")
+            )
+            # 将 [点击此处](url) 这种变成链接块
+            if "点击此处" in text and report_url:
+                content_blocks.append([{"tag": "a", "text": "点击此处查看报告", "href": report_url}])
+            else:
+                content_blocks.append([{"tag": "text", "text": text}])
+
         message = {
-            "msg_type": "text",
+            "msg_type": "post",
             "content": {
-                "text": f"{request.title}\n\n{request.content}"
-            }
+                "post": {
+                    "zh_cn": {
+                        "title": request.title,
+                        "content": content_blocks or [[{"tag": "text", "text": str(request.content or "")}]],
+                    }
+                }
+            },
         }
         
         # 如果有签名密钥，添加签名
@@ -334,22 +368,22 @@ class NotificationService:
     async def _send_wechat_notification(self, config, request: SendNotificationRequest) -> tuple[bool, str, Dict[str, Any]]:
         """发送企业微信通知"""
         webhook_url = config.notification_config.get("webhook_url")
-        
-        # 构建消息体
-        message = {
-            "msgtype": "text",
-            "text": {
-                "content": f"{request.title}\n\n{request.content}"
-            }
+
+        # 企业微信使用 markdown（更直观，支持链接）
+        content = f"**{request.title}**\n\n{request.content}"
+        message: Dict[str, Any] = {
+            "msgtype": "markdown",
+            "markdown": {"content": content},
         }
         
         # 添加@成员
         mentioned_list = config.notification_config.get("mentioned_list", [])
         mentioned_mobile_list = config.notification_config.get("mentioned_mobile_list", [])
-        
-        if mentioned_list or mentioned_mobile_list:
-            message["text"]["mentioned_list"] = mentioned_list
-            message["text"]["mentioned_mobile_list"] = mentioned_mobile_list
+        # markdown 不支持 text 的 mentioned_list 字段，这里用 <@xxx> 语法追加
+        if mentioned_list:
+            message["markdown"]["content"] += "\n\n" + " ".join([f"<@{x}>" for x in mentioned_list])
+        if mentioned_mobile_list:
+            message["markdown"]["content"] += "\n\n" + " ".join([f"<@{x}>" for x in mentioned_mobile_list])
         
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
@@ -375,12 +409,13 @@ class NotificationService:
             sign = self._generate_dingtalk_sign(timestamp, secret)
             webhook_url += f"&timestamp={timestamp}&sign={sign}"
         
-        # 构建消息体
-        message = {
-            "msgtype": "text",
-            "text": {
-                "content": f"{request.title}\n\n{request.content}"
-            }
+        # 构建 markdown 消息体（更直观，支持链接）
+        message: Dict[str, Any] = {
+            "msgtype": "markdown",
+            "markdown": {
+                "title": request.title,
+                "text": f"### {request.title}\n\n{request.content}",
+            },
         }
         
         # 添加@成员

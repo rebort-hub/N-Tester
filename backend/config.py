@@ -18,6 +18,8 @@ class Configs(BaseSettings):
     SERVER_DESC: str = project_desc
     SERVER_VERSION: typing.Union[int, str] = 2.0
     BASE_URL: AnyHttpUrl = Field(default="http://127.0.0.1:8100", validation_alias="BASE_URL")  # 开发环境
+    # 前端访问地址（用于通知中的“查看报告”链接）。未配置则回退 BASE_URL。
+    FRONTEND_BASE_URL: str = Field(default="", validation_alias="FRONTEND_BASE_URL")
 
     API_PREFIX: str = "/api"  # 接口前缀 - v1版本通过路由器添加
     STATIC_DIR: str = 'static'  # 静态文件目录

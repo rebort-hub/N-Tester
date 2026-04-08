@@ -13,8 +13,11 @@ export interface SchedulerTask {
   scheduler_job_id?: string | null;
   last_run_at?: string | null;
   next_run_at?: string | null;
+  next_time?: string | null;
+  latest_run_time?: string | null;
   total_run_count: number;
   creation_date: string;
+  latest_status?: string;
 }
 
 // 通知配置
@@ -55,7 +58,8 @@ interface CommonResponse<T = any> {
   data: T;
 }
 
-export const taskSchedulerApi = {
+export function useTaskSchedulerApi() {
+  return {
   getTaskList: (params: {
     page?: number;
     size?: number;
@@ -244,5 +248,9 @@ export const taskSchedulerApi = {
       data: { job_id },
     });
   },
-};
+  };
+}
+
+// 兼容旧用法：逐步迁移页面 import 后可移除
+export const taskSchedulerApi = useTaskSchedulerApi();
 

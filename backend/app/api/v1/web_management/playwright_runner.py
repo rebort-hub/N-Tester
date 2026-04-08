@@ -17,7 +17,9 @@ from .model import WebResultDetailModel, WebResultListModel
 
 
 def _playwright_base_dir() -> Path:
-    return Path(app_config.BASEDIR) / app_config.STATIC_DIR / "media" / "playwright"
+    
+    backend_root = Path(__file__).resolve().parents[4]
+    return backend_root / app_config.STATIC_DIR / "media" / "playwright"
 
 async def _ai_action_on_page(page, cmd: str, result_id: str, browser: int) -> tuple[bool, str]:
     """

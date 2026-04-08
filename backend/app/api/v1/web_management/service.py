@@ -756,6 +756,88 @@ class WebManagementService:
             return {"pid": pid, "stopped": False, "error": str(e)}
 
     @staticmethod
+    async def stop_web_result(db: AsyncSession, *, result_id: str, user_id: int) -> Dict[str, Any]:
+      
+        res = await db.execute(
+            select(WebResultListModel)
+            .where(
+                WebResultListModel.enabled_flag == 1,
+                WebResultListModel.result_id == str(result_id),
+                WebResultListModel.created_by == user_id,
+            )
+            .order_by(WebResultListModel.id.desc())
+            .limit(1)
+        )
+        row = res.scalar_one_or_none()
+        if not row:
+            return {"result_id": result_id, "stopped": False, "message": "未找到执行记录"}
+
+        pid_list = row.pid_list or []
+        stopped_count = 0
+        for pid in pid_list:
+            try:
+                r = await WebManagementService.stop_web_script(int(pid))
+                if r.get("stopped") is True:
+                    stopped_count += 1
+            except Exception:
+                continue
+
+     
+        row.status = 1
+        row.end_time = datetime.now()
+        
+        await db.commit()
+
+        return {
+            "result_id": result_id,
+            "stopped": True,
+            "pid_total": len(pid_list),
+            "pid_stopped": stopped_count,
+        }
+
+    @staticmethod
+    async def del_web_result(db: AsyncSession, *, result_id: str, user_id: int) -> Dict[str, Any]:
+      
+        rid = str(result_id)
+        res = await db.execute(
+            select(WebResultListModel)
+            .where(
+                WebResultListModel.enabled_flag == 1,
+                WebResultListModel.result_id == rid,
+                WebResultListModel.created_by == user_id,
+            )
+            .order_by(WebResultListModel.id.desc())
+            .limit(1)
+        )
+        row = res.scalar_one_or_none()
+        if not row:
+            return {"result_id": rid, "deleted": False, "message": "未找到执行记录"}
+
+        # 若仍在执行中，先尝试停止所有进程
+        if int(getattr(row, "status", 0) or 0) == 0:
+            pid_list = row.pid_list or []
+            for pid in pid_list:
+                try:
+                    await WebManagementService.stop_web_script(int(pid))
+                except Exception:
+                    continue
+
+        # 硬删除明细
+        await db.execute(
+            WebResultDetailModel.__table__.delete().where(WebResultDetailModel.result_id == rid)
+        )
+        # 硬删除主记录
+        await db.execute(
+            WebResultListModel.__table__.delete().where(
+                WebResultListModel.result_id == rid,
+                WebResultListModel.created_by == user_id,
+            )
+        )
+        await db.commit()
+
+        return {"result_id": rid, "deleted": True}
+
+    @staticmethod
     async def analysis_web_script(db: AsyncSession, data: Dict[str, Any]) -> Tuple[bool, str, List[Dict[str, Any]], int]:
         
         try:
@@ -870,7 +952,7 @@ class WebManagementService:
                 skipped += 1
                 continue
 
-            # 尝试按 created_by + name 做幂等更新（避免重复导入）
+            
             res = await db.execute(
                 select(WebElementModel).where(
                     WebElementModel.enabled_flag == 1,
@@ -941,7 +1023,9 @@ class WebManagementService:
 
     @staticmethod
     def _playwright_base_dir() -> Path:
-        return Path(app_config.BASEDIR) / app_config.STATIC_DIR / "media" / "playwright"
+        
+        backend_root = Path(__file__).resolve().parents[4]
+        return backend_root / app_config.STATIC_DIR / "media" / "playwright"
 
     @staticmethod
     async def get_web_result_log(*, result_id: str, browser: int) -> List[str]:
@@ -993,6 +1077,7 @@ class WebManagementService:
                     "result_id": r.result_id,
                     "script_list": r.script_list,
                     "browser_list": r.browser_list,
+                    "pid_list": r.pid_list or [],
                     "result": r.result,
                     "start_time": r.start_time,
                     "end_time": r.end_time,
@@ -1186,7 +1271,7 @@ class WebManagementService:
             uid = getattr(r, "updated_by", None) or getattr(r, "created_by", None)
             creation_date = getattr(r, "creation_date", None)
             updation_date = getattr(r, "updation_date", None)
-            # 序列化为字符串，避免前端对 datetime 调用 .toString() 等导致异常
+            
             if creation_date is not None and hasattr(creation_date, "isoformat"):
                 creation_date = creation_date.isoformat()
             if updation_date is not None and hasattr(updation_date, "isoformat"):
@@ -1323,7 +1408,7 @@ class WebManagementService:
         import re
 
         safe_step = re.sub(r"[^\w\u4e00-\u9fff\-_.]+", "_", str(step_name or "step"))[:60]
-        # 尽量从 page.url 推导 result_id/browser（无法推导就落到 common 目录）
+        
         base_dir = WebManagementService._playwright_base_dir() / "common"
         base_dir.mkdir(parents=True, exist_ok=True)
         filename = f"{datetime.now().strftime('%Y%m%d%H%M%S%f')}_{safe_step}.png"
@@ -1340,7 +1425,7 @@ class WebManagementService:
         out = Path(output_path)
         out.parent.mkdir(parents=True, exist_ok=True)
 
-        # Playwright 录制视频由 context.record_video_dir 驱动；这里负责把已生成的视频复制到指定位置
+        
         video = getattr(page, "video", None)
         if not video:
             raise ValueError("page.video 不存在：请确保创建 context 时开启 record_video_dir")

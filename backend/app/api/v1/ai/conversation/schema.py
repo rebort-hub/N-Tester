@@ -2,7 +2,7 @@
 对话管理 Schema
 """
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from datetime import datetime
 
 
@@ -64,6 +64,24 @@ class SendMessageRequest(BaseModel):
     content: str = Field(..., description="消息内容")
     stream: bool = Field(False, description="是否流式响应")
     attachments: Optional[List[Dict[str, Any]]] = Field(None, description="附件列表")
+    project_id: Optional[int] = Field(None, description="项目ID")
+    use_knowledge_base: bool = Field(False, description="是否启用知识库检索")
+    knowledge_base_id: Optional[int] = Field(None, description="知识库ID")
+    use_mcp: bool = Field(False, description="是否启用MCP工具")
+    mcp_config_id: Optional[int] = Field(None, description="MCP配置ID")
+
+    @field_validator("use_knowledge_base", "use_mcp", mode="before")
+    @classmethod
+    def coerce_bool_flags(cls, v):
+        if v is None:
+            return False
+        if isinstance(v, bool):
+            return v
+        if isinstance(v, (int, float)):
+            return v != 0
+        if isinstance(v, str):
+            return v.strip().lower() in ("1", "true", "yes", "on")
+        return bool(v)
 
 
 class SendMessageResponse(BaseModel):

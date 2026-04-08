@@ -8,7 +8,6 @@ import os
 import sys
 from enum import Enum
 from typing import Annotated
-
 import typer
 from alembic import command
 from alembic.config import Config
@@ -375,50 +374,20 @@ try:
     from app.api.v1.system.log import model as log_model
     from app.api.v1.system.file import model as file_model
     from app.api.v1.system.code_generator import model as code_gen_model
-    
-    # AI 相关模块
     from app.api.v1.ai_intelligence import model as ai_intelligence_model
-    
-    # 项目管理模块
     from app.api.v1.projects import model as projects_model
-    
-    # 测试用例模块
     from app.api.v1.testcases import model as testcases_model
-    
-    # API 测试模块
     from app.api.v1.api_testing import model as api_testing_model
-    
-    # API 自动化模块
     from app.api.v1.api_automation import model as api_automation_model
-    
-    # UI 自动化模块
     from app.api.v1.ui_automation import model as ui_automation_model
-    
-    # APP 管理模块
     from app.api.v1.app_management import model as app_management_model
-    
-    # APP Mitmproxy 模块
     from app.api.v1.app_mitmproxy import model as app_mitmproxy_model
-    
-    # Web 管理模块
     from app.api.v1.web_management import model as web_management_model
-    
-    # 通知模块
     from app.api.v1.notifications import model as notifications_model
-    
-    # 任务调度模块
     from app.api.v1.task_scheduler import model as task_scheduler_model
-    
-    # 评审模块
     from app.api.v1.reviews import model as reviews_model
-    
-    # 助手模块
     from app.api.v1.assistant import model as assistant_model
-    
-    # 云设备模块
     from app.api.v1.cloud_device import model as cloud_device_model
-    
-    # 数据工厂模块
     from app.api.v1.data_factory import model as data_factory_model
     
     print(f"成功导入 {len(target_metadata.tables)} 个表")

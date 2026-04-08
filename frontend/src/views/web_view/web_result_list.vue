@@ -21,7 +21,16 @@
 
     <!-- 表格 -->
     <el-card shadow="hover" style="margin-top: 8px">
-      <el-table v-loading="loading" :data="table_list" border stripe empty-text="暂无数据">
+      <el-table
+        v-loading="loading"
+        :data="table_list"
+        border
+        stripe
+        empty-text="暂无数据"
+        :fit="true"
+        table-layout="auto"
+        style="width: 100%"
+      >
         <el-table-column type="index" label="序号" width="60" align="center" />
         <el-table-column label="任务名称" prop="task_name" min-width="120" show-overflow-tooltip />
 
@@ -77,15 +86,44 @@
           <template #default="{ row }">{{ formatTime(row.end_time) }}</template>
         </el-table-column>
 
-        <el-table-column label="操作" width="130" align="center" fixed="right">
+        <el-table-column label="操作" width="280" align="center" fixed="right">
           <template #default="{ row }">
-            <el-button
-              v-if="row.status === 1"
-              type="primary"
-              size="small"
-              icon="Document"
-              @click="view_report(row.result_id)"
-            >查看报告</el-button>
+            <span class="action-cell">
+              <el-button
+                v-if="row.status === 0"
+                type="danger"
+                size="small"
+                @click="stop_run(row.result_id)"
+              >停止</el-button>
+
+              <el-button
+                v-if="row.status === 1"
+                type="primary"
+                size="small"
+                @click="view_report(row.result_id)"
+              >查看报告</el-button>
+
+              <el-button
+                v-if="row.status === 1"
+                type="info"
+                size="small"
+                @click="rerun(row)"
+              >重跑</el-button>
+
+              <el-button
+                v-else
+                type="info"
+                size="small"
+                disabled
+                title="执行中请先停止"
+              >重跑</el-button>
+
+              <el-button
+                type="danger"
+                size="small"
+                @click="del_run(row)"
+              >删除</el-button>
+            </span>
           </template>
         </el-table-column>
       </el-table>
@@ -109,7 +147,10 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { get_web_result_list } from '/@/api/v1/web_management'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { useWebManagementApi } from '/@/api/v1/web_management'
+
+const { get_web_result_list, run_web_script, stop_web_result, del_web_result } = useWebManagementApi()
 
 const table_list = ref<any[]>([])
 const loading = ref(false)
@@ -154,6 +195,56 @@ const view_report = (result_id: string) => {
   window.open(`${window.location.origin}/web/report?result_id=${encodeURIComponent(result_id)}`)
 }
 
+const stop_run = async (result_id: string) => {
+  try {
+    await stop_web_result({ result_id })
+    ElMessage.success('已停止执行')
+    await result_list()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '停止失败')
+  }
+}
+
+const rerun = async (row: any) => {
+  try {
+    const newResultId = String(Date.now())
+    await run_web_script({
+      task_name: row.task_name,
+      result_id: newResultId,
+      browser: row.browser_list || [],
+      script: row.script_list || [],
+      width: 1920,
+      height: 1080,
+      browser_type: 2,
+    })
+    ElMessage.success('已发起重跑')
+    await result_list()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '重跑失败')
+  }
+}
+
+const del_run = async (row: any) => {
+  try {
+    await ElMessageBox.confirm(
+      '确认删除该执行记录？如果正在执行中，将先停止进程再删除，该操作不可恢复。',
+      '提示',
+      {
+        type: 'warning',
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+      },
+    )
+    await del_web_result({ result_id: row.result_id })
+    ElMessage.success('删除成功')
+    await result_list()
+  } catch (e: any) {
+    // 点击取消不提示错误
+    if (e === 'cancel' || e === 'close') return
+    ElMessage.error(e?.message || '删除失败')
+  }
+}
+
 onMounted(() => { result_list() })
 </script>
 
@@ -161,4 +252,9 @@ onMounted(() => { result_list() })
 .result-list-container {
   padding: 10px;
 }
+
+.action-cell {
+  white-space: nowrap;
+}
+
 </style>

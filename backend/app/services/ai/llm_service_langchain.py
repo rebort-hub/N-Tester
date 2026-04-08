@@ -31,7 +31,7 @@ class LLMProvider(str, Enum):
 
 class LLMMessage:
     """LLM 消息类"""
-    def __init__(self, role: str, content: str, name: Optional[str] = None):
+    def __init__(self, role: str, content: Any, name: Optional[str] = None):
         self.role = role  # system, user, assistant
         self.content = content
         self.name = name
@@ -126,7 +126,7 @@ class LLMService:
     
     async def chat_completion(
         self,
-        messages: List[Union[LLMMessage, Dict[str, str]]],
+        messages: List[Union[LLMMessage, Dict[str, Any]]],
         model: Optional[str] = None,
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
@@ -241,7 +241,10 @@ async def get_llm_service(llm_config_id: Optional[int] = None) -> LLMService:
             "api_key": config.api_key,
             "base_url": config.base_url,
             "temperature": config.temperature or 0.7,
-            "max_tokens": config.max_tokens
+            "max_tokens": config.max_tokens,
+            "system_prompt": config.system_prompt or "",
+            "supports_vision": bool(config.supports_vision),
+            "context_limit": int(config.context_limit or 0),
         }
         
         return LLMService(provider, service_config)

@@ -377,9 +377,11 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
 import { Plus, VideoPlay, Refresh, Search, Right, Delete, Box } from '@element-plus/icons-vue'
-import { uiTestSuiteApi, uiTestCaseApi } from '/@/api/v1/ui_automation'
+import { useUiAutomationApi } from '/@/api/v1/ui_automation'
 import { formatDateTime } from '/@/utils/formatTime'
 import ExecutionMonitor from './ExecutionMonitor.vue'
+
+const { uiTestSuiteApi, uiTestCaseApi } = useUiAutomationApi()
 
 const props = defineProps<{
   uiProjectId: number

@@ -229,7 +229,9 @@ import {
   Monitor, Refresh, CircleCheck, CircleClose, TrendCharts, 
   Document, Check, SuccessFilled, WarningFilled, DocumentCopy 
 } from '@element-plus/icons-vue'
-import { uiBrowserApi } from '/@/api/v1/ui_automation'
+import { useUiAutomationApi } from '/@/api/v1/ui_automation'
+
+const { uiBrowserApi } = useUiAutomationApi()
 
 // 定义组件名称
 defineOptions({

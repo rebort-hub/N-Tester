@@ -323,10 +323,12 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
 import { Plus, VideoPlay, Refresh, Search, CopyDocument, Download, Delete } from '@element-plus/icons-vue'
-import { uiTestCaseApi, uiTestStepApi } from '/@/api/v1/ui_automation'
+import { useUiAutomationApi } from '/@/api/v1/ui_automation'
 import { formatDateTime } from '/@/utils/formatTime'
 import TestStepEditor from './TestStepEditor.vue'
 import ExecutionMonitor from './ExecutionMonitor.vue'
+
+const { uiTestCaseApi, uiTestStepApi } = useUiAutomationApi()
 
 const props = defineProps<{
   uiProjectId: number

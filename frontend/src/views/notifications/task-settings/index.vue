@@ -231,13 +231,16 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance } from 'element-plus'
 import { Plus, Search, Refresh, Edit, Delete } from '@element-plus/icons-vue'
 import { 
-  taskNotificationApi, 
-  notificationConfigApi,
+  useTaskNotificationApi, 
+  useNotificationConfigApi,
   type TaskNotificationSetting,
   type TaskNotificationSettingCreate,
   type NotificationConfig 
 } from '/@/api/v1/notifications'
 import { formatDateTime } from '/@/utils/formatTime'
+
+const taskNotificationApi = useTaskNotificationApi()
+const notificationConfigApi = useNotificationConfigApi()
 
 // 响应式数据
 const loading = ref(true)
