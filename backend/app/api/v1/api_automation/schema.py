@@ -15,8 +15,18 @@ class ApiProjectRequest(BaseModel):
 
 
 class ApiServiceRequest(BaseModel):
-    """获取服务列表"""
+    """获取服务列表（支持分页和筛选）"""
+    page: Optional[int] = Field(1, description="页码")
+    pageSize: Optional[int] = Field(20, description="每页条数")
     project_id: Optional[int] = Field(None, description="项目ID，不传则返回全部")
+    name: Optional[str] = Field(None, description="服务名称关键字（模糊匹配）")
+    manager: Optional[int] = Field(None, description="负责人用户ID")
+    business_id: Optional[int] = Field(None, description="业务线ID")
+
+
+class ApiServiceSortRequest(BaseModel):
+    """服务排序"""
+    ids: List[int] = Field(..., description="按顺序传入服务 ID 列表")
 
 class AddApiProjectRequest(BaseModel):
     """新增项目"""
@@ -44,6 +54,10 @@ class AddApiServiceRequest(BaseModel):
     api_project_id: int = Field(..., description="所属项目ID")
     img: Optional[str] = Field(None, description="服务图标")
     description: Optional[str] = Field(None, description="服务描述")
+    source_type: Optional[str] = Field(None, description="接口文档类型：swagger/apifox")
+    source_addr: Optional[str] = Field(None, description="接口文档地址")
+    manager: Optional[int] = Field(None, description="负责人用户ID")
+    business_id: Optional[int] = Field(None, description="业务线ID")
 
 
 class EditApiServiceRequest(BaseModel):
@@ -53,6 +67,10 @@ class EditApiServiceRequest(BaseModel):
     api_project_id: Optional[int] = Field(None, description="所属项目ID")
     img: Optional[str] = Field(None, description="服务图标")
     description: Optional[str] = Field(None, description="服务描述")
+    source_type: Optional[str] = Field(None, description="接口文档类型：swagger/apifox")
+    source_addr: Optional[str] = Field(None, description="接口文档地址")
+    manager: Optional[int] = Field(None, description="负责人用户ID")
+    business_id: Optional[int] = Field(None, description="业务线ID")
 
 
 class DelApiServiceRequest(BaseModel):
@@ -236,6 +254,7 @@ class ApiScriptResultListRequest(BaseModel):
     """执行结果汇总列表分页"""
     page: Optional[int] = Field(1, description="页码")
     pageSize: Optional[int] = Field(1000, description="每页条数")
+    api_service_id: Optional[int] = Field(None, description="按服务ID过滤，不传则返回全部")
 
 
 class ApiScriptResultDetailRequest(BaseModel):
@@ -390,3 +409,70 @@ class DelApiFunctionRequest(BaseModel):
 class ApiUpdateListRequest(BaseModel):
     """同步变更列表"""
     api_service_id: Optional[int] = Field(None, description="服务ID，不传返回全部")
+
+
+# ---------- 用例集（Suite）----------
+
+class ApiSuiteListRequest(BaseModel):
+    """获取用例集树"""
+    api_service_id: int = Field(..., description="服务ID")
+
+
+class AddApiSuiteRequest(BaseModel):
+    """新增用例集"""
+    name: str = Field(..., description="用例集名称")
+    parent: Optional[int] = Field(None, description="父用例集ID，顶级为null")
+    api_service_id: int = Field(..., description="所属服务ID")
+
+
+class EditApiSuiteRequest(BaseModel):
+    """编辑用例集"""
+    id: int = Field(..., description="用例集ID")
+    name: str = Field(..., description="新名称")
+
+
+class DelApiSuiteRequest(BaseModel):
+    """删除用例集（级联删除子集和用例）"""
+    id: int = Field(..., description="用例集ID")
+
+
+class ApiSuiteSortRequest(BaseModel):
+    """用例集排序"""
+    ids: List[int] = Field(..., description="同级用例集ID列表，按顺序持久化")
+
+
+# ---------- 用例（Case）----------
+
+class ApiCaseListRequest(BaseModel):
+    """获取用例列表"""
+    suite_id: int = Field(..., description="用例集ID")
+
+
+class AddApiCaseRequest(BaseModel):
+    """新增用例"""
+    name: str = Field(..., description="用例名称")
+    description: Optional[str] = Field(None, description="用例描述")
+    suite_id: int = Field(..., description="所属用例集ID")
+    script: Optional[List[Dict[str, Any]]] = Field(default_factory=list, description="步骤列表")
+
+
+class EditApiCaseRequest(BaseModel):
+    """编辑用例"""
+    id: int = Field(..., description="用例ID")
+    name: Optional[str] = Field(None, description="用例名称")
+    description: Optional[str] = Field(None, description="用例描述")
+    script: Optional[List[Dict[str, Any]]] = Field(None, description="步骤列表")
+
+
+class DelApiCaseRequest(BaseModel):
+    """删除用例"""
+    id: int = Field(..., description="用例ID")
+
+
+class RunApiCaseRequest(BaseModel):
+    """执行用例"""
+    case_ids: List[int] = Field(..., description="用例ID列表")
+    env_id: int = Field(..., description="环境ID")
+    params_id: Optional[int] = Field(None, description="参数集ID，可选")
+    name: Optional[str] = Field(None, description="任务名称，不传则自动生成")
+    result_id: Optional[int] = Field(None, description="前端指定的执行ID，用于轮询")

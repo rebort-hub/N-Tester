@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="scheduler-page">
     <el-card class="box-card">
       <template #header>
@@ -316,16 +316,34 @@
                 </el-select>
               </el-form-item>
 
-              <el-form-item v-if="form.type === 3" label="测试用例">
+              <el-form-item v-if="form.type === 3" label="选择服务">
                 <el-select
-                  v-model="form.script.api_script_list"
+                  v-model="form.script.api_service_id"
+                  placeholder="请选择服务"
+                  style="width: 80%"
+                  clearable
+                  filterable
+                  @change="onSchedulerServiceChange"
+                >
+                  <el-option
+                    v-for="item in apiServiceList"
+                    :key="item.id"
+                    :label="item.name"
+                    :value="item.id"
+                  />
+                </el-select>
+              </el-form-item>
+
+              <el-form-item v-if="form.type === 3" label="用例集">
+                <el-select
+                  v-model="form.script.api_suite_list"
                   multiple
                   filterable
-                  placeholder="请选择测试用例"
+                  placeholder="请选择用例集（可多选）"
                   style="width: 80%"
                 >
                   <el-option
-                    v-for="item in apiScriptList"
+                    v-for="item in schedulerSuiteOptions"
                     :key="item.id"
                     :label="item.name"
                     :value="item.id"
@@ -341,21 +359,6 @@
                 >
                   <el-option
                     v-for="item in envList"
-                    :key="item.id"
-                    :label="item.name"
-                    :value="item.id"
-                  />
-                </el-select>
-              </el-form-item>
-
-              <el-form-item v-if="form.type === 3" label="参数配置">
-                <el-select
-                  v-model="form.script.params_id"
-                  placeholder="请选择参数配置"
-                  style="width: 80%"
-                >
-                  <el-option
-                    v-for="item in paramsList"
                     :key="item.id"
                     :label="item.name"
                     :value="item.id"
@@ -481,7 +484,7 @@ import { useWebManagementApi } from '/@/api/v1/web_management';
 const taskSchedulerApi = useTaskSchedulerApi();
 const notificationConfigApi = useNotificationConfigApi();
 const { device_list } = useCloudDeviceApi();
-const { get_api_script_list, api_env, params_select } = useApiAutomationApi();
+const { get_api_script_list, api_env, params_select, api_service, api_suite_list } = useApiAutomationApi();
 const { web_group_select } = useWebManagementApi();
 import { formatDateTime } from '/@/utils/formatTime';
 
@@ -543,6 +546,8 @@ const form = reactive<{
     app_script_list: [],
     web_group_list: [],
     api_script_list: [],
+    api_suite_list: [],
+    api_service_id: null,
     browser: [],
     env_id: null,
     params_id: null,
@@ -575,6 +580,8 @@ const deviceList = ref<any[]>([]);
 const appScriptList = ref<any[]>([]);
 const webScriptList = ref<any[]>([]);
 const apiScriptList = ref<any[]>([]);
+const apiServiceList = ref<any[]>([]);
+const schedulerSuiteOptions = ref<any[]>([]);
 const envList = ref<any[]>([]);
 const paramsList = ref<any[]>([]);
 const noticeList = ref<any[]>([]);
@@ -610,6 +617,29 @@ const loadApiScripts = async () => {
   } catch {
     apiScriptList.value = [];
   }
+};
+
+const loadApiServices = async () => {
+  try {
+    const res: any = await api_service({ page: 1, pageSize: 200, search: {} });
+    const raw = res?.data;
+    apiServiceList.value = Array.isArray(raw?.content) ? raw.content : (Array.isArray(raw) ? raw : []);
+  } catch { apiServiceList.value = []; }
+};
+
+const onSchedulerServiceChange = async (serviceId: number | null) => {
+  schedulerSuiteOptions.value = [];
+  form.script.api_suite_list = [];
+  if (!serviceId) return;
+  try {
+    const r: any = await api_suite_list({ api_service_id: serviceId });
+    const flatten = (nodes: any[]): any[] => {
+      const result: any[] = [];
+      for (const n of nodes) { result.push(n); if (n.children?.length) result.push(...flatten(n.children)); }
+      return result;
+    };
+    schedulerSuiteOptions.value = flatten(Array.isArray(r?.data) ? r.data : []);
+  } catch { schedulerSuiteOptions.value = []; }
 };
 
 const loadApiEnv = async () => {
@@ -732,6 +762,8 @@ const resetForm = () => {
     app_script_list: [],
     web_group_list: [],
     api_script_list: [],
+    api_suite_list: [],
+    api_service_id: null,
     browser: [],
     env_id: null,
     params_id: null,
@@ -787,9 +819,8 @@ const handleAdd = () => {
     loadDevices(),
     loadAppScripts(),
     loadWebScripts(),
-    loadApiScripts(),
+    loadApiServices(),
     loadApiEnv(),
-    loadApiParams(),
     loadNotices(),
   ]);
   dialogVisible.value = true;
@@ -818,11 +849,14 @@ const handleEdit = (row: SchedulerTask) => {
     loadDevices(),
     loadAppScripts(),
     loadWebScripts(),
-    loadApiScripts(),
+    loadApiServices(),
     loadApiEnv(),
-    loadApiParams(),
     loadNotices(),
   ]);
+  // 编辑时如果有 api_service_id，加载对应用例集
+  if (form.type === 3 && form.script.api_service_id) {
+    onSchedulerServiceChange(form.script.api_service_id);
+  }
   dialogVisible.value = true;
 };
 

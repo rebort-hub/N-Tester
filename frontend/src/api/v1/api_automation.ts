@@ -19,7 +19,7 @@ export function useApiAutomationApi() {
     del_api_project: (data: { id: number }) => postApiAutomation('/v1/api_automation/del_api_project', data),
 
     // ---------- 服务 ----------
-    api_service: (data: { page?: number; pageSize?: number; search?: { api_project_id?: number | null } } = {}) =>
+    api_service: (data: { page?: number; pageSize?: number; search?: { api_project_id?: number | null; name?: string; manager?: number | null; business_id?: number | null } } = {}) =>
       postApiAutomation('/v1/api_automation/api_service', data),
     add_api_service: (data: { name: string; api_project_id: number; img?: string | null; description?: string | null }) =>
       postApiAutomation('/v1/api_automation/add_api_service', data),
@@ -114,7 +114,7 @@ export function useApiAutomationApi() {
     get_api_case: (data: { script?: any[] } = {}) => postApiAutomation('/v1/api_automation/get_api_case', data),
     run_api_script: (data: Record<string, any>) => postApiAutomation('/v1/api_automation/run_api_script', data),
     get_api_script_result: (data: { result_id: number }) => postApiAutomation('/v1/api_automation/get_api_script_result', data),
-    get_api_script_result_list: (data: { page?: number; pageSize?: number } = {}) =>
+    get_api_script_result_list: (data: { page?: number; pageSize?: number; search?: Record<string, any>; api_service_id?: number | null } = {}) =>
       postApiAutomation('/v1/api_automation/get_api_script_result_list', data),
     get_api_script_result_detail: (data: { result_id: number }) => postApiAutomation('/v1/api_automation/get_api_script_result_detail', data),
     get_api_script_result_detail_list: (data: { result_id: number; menu_id: string }) =>
@@ -132,6 +132,49 @@ export function useApiAutomationApi() {
     // ---------- 外部调用 ----------
     service_api_update: (data: Record<string, any>) => postApiAutomation('/v1/api_automation/service_api_update', data),
     gitlab_ci_notice: (data: Record<string, any>) => postApiAutomation('/v1/api_automation/gitlab_ci_notice', data),
+
+    // ---------- 代码生成 ----------
+    generate_code: (data: {
+      source_type: 'swagger' | 'apifox' | 'case' | 'custom';
+      framework: 'pytest' | 'unittest' | 'testng' | 'jest';
+      api_ids?: number[];
+      custom_apis?: any[];
+      base_url?: string;
+      class_name?: string;
+      service_id?: number;
+    }) => postApiAutomation('/v1/api_automation/generate_code', data),
+    run_generated_code: (data: { code: string; framework: string }) =>
+      postApiAutomation('/v1/api_automation/run_generated_code', data),
+
+    // ---------- 服务排序 ----------
+    api_service_sort: (data: { ids: number[] }) =>
+      postApiAutomation('/v1/api_automation/api_service_sort', data),
+
+    // ---------- 用例集（Suite）----------
+    api_suite_list: (data: { api_service_id: number }) =>
+      postApiAutomation('/v1/api_automation/api_suite_list', data),
+    add_api_suite: (data: { name: string; parent?: number | null; api_service_id: number }) =>
+      postApiAutomation('/v1/api_automation/add_api_suite', data),
+    edit_api_suite: (data: { id: number; name: string }) =>
+      postApiAutomation('/v1/api_automation/edit_api_suite', data),
+    del_api_suite: (data: { id: number }) =>
+      postApiAutomation('/v1/api_automation/del_api_suite', data),
+    api_suite_sort: (data: { ids: number[] }) =>
+      postApiAutomation('/v1/api_automation/api_suite_sort', data),
+
+    // ---------- 用例（Case）----------
+    api_case_list: (data: { suite_id: number }) =>
+      postApiAutomation('/v1/api_automation/api_case_list', data),
+    add_api_case: (data: { name: string; description?: string; suite_id: number; script?: any[]; case_type?: number }) =>
+      postApiAutomation('/v1/api_automation/add_api_case', data),
+    edit_api_case: (data: { id: number; name?: string; description?: string; script?: any[]; case_type?: number }) =>
+      postApiAutomation('/v1/api_automation/edit_api_case', data),
+    del_api_case: (data: { id: number }) =>
+      postApiAutomation('/v1/api_automation/del_api_case', data),
+    run_api_case: (data: { case_ids: number[]; env_id: number; params_id?: number | null; name?: string }) =>
+      postApiAutomation('/v1/api_automation/run_api_case', data),
+    save_api_case_to_suite: (data: { name: string; description?: string; suite_id: number; script?: any[]; case_type?: number }) =>
+      postApiAutomation('/v1/api_automation/save_api_case_to_suite', data),
   };
 }
 export const apiAutomationApi = useApiAutomationApi();

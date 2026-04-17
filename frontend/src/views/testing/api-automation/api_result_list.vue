@@ -30,26 +30,7 @@
 				style="width: 100%"
 			>
 				<el-table-column type="index" label="序号" width="60" align="center" />
-				<el-table-column prop="name" label="任务名称" min-width="120" show-overflow-tooltip />
-				<el-table-column prop="result.pass" label="用例详情" width="120" align="center">
-					<template #default="{ row }">
-						<el-popover placement="top" :width="350" trigger="hover">
-							<div>
-								<el-steps direction="vertical" :active="99">
-									<el-step v-for="step in row.script" :key="step.id">
-										<template #title>
-											<span>{{ step.name }}</span>
-											<span style="float: right">{{ '(通过数：' + step.pass + ' 失败数：' + step.fail + ')' }}</span>
-										</template>
-									</el-step>
-								</el-steps>
-							</div>
-							<template #reference>
-								<el-button type="primary" size="small" plain>用例详情</el-button>
-							</template>
-						</el-popover>
-					</template>
-				</el-table-column>
+				<el-table-column prop="name" label="任务名称" min-width="140" show-overflow-tooltip />
 				<el-table-column label="任务状态" width="110" align="center">
 					<template #default="{ row }">
 						<el-tag :type="statusMeta(row.status).tagType">{{ statusMeta(row.status).text }}</el-tag>
@@ -71,9 +52,10 @@
 						{{ row.end_time ? String(row.end_time).replace('T', ' ') : '-' }}
 					</template>
 				</el-table-column>
-				<el-table-column label="操作" width="300" align="center" fixed="right">
+				<el-table-column label="操作" width="340" align="center" fixed="right">
 					<template #default="{ row }">
 						<span class="action-cell">
+							<el-button type="success" size="small" @click="viewDetail(row)">详情</el-button>
 							<el-button
 								v-if="statusMeta(row.status).isRunning"
 								type="danger"
@@ -123,13 +105,102 @@
 				/>
 			</div>
 		</el-card>
+
+		<!-- 用例详情抽屉 -->
+		<el-drawer
+			v-model="detailDrawerVisible"
+			direction="rtl"
+			size="480px"
+			destroy-on-close
+			:show-close="false"
+		>
+			<template #header="{ close }">
+				<div class="drawer-header">
+					<div class="drawer-header-info">
+						<div class="drawer-title">{{ detailRow?.name }}</div>
+						<div class="drawer-subtitle">
+							<span>{{ detailRow?.start_time ? String(detailRow.start_time).replace('T',' ').slice(0,19) : '' }}</span>
+							<span v-if="detailRow?.end_time" style="margin-left:8px">→ {{ String(detailRow.end_time).replace('T',' ').slice(0,19) }}</span>
+						</div>
+					</div>
+					<el-icon class="drawer-close" @click="close"><Close /></el-icon>
+				</div>
+			</template>
+
+			<!-- 汇总卡片 -->
+			<div class="detail-summary-cards">
+				<div class="summary-card">
+					<div class="sc-val">{{ detailRow?.result?.total ?? (detailRow?.script?.length ?? 0) }}</div>
+					<div class="sc-label">总用例</div>
+				</div>
+				<div class="summary-card pass-card">
+					<div class="sc-val">{{ detailRow?.result?.pass ?? 0 }}</div>
+					<div class="sc-label">通过</div>
+				</div>
+				<div class="summary-card fail-card">
+					<div class="sc-val">{{ detailRow?.result?.fail ?? 0 }}</div>
+					<div class="sc-label">失败</div>
+				</div>
+				<div class="summary-card rate-card">
+					<div class="sc-val">{{ detailRow?.result?.percent ?? 0 }}%</div>
+					<div class="sc-label">通过率</div>
+				</div>
+			</div>
+
+			<!-- 进度条 -->
+			<div class="detail-progress">
+				<el-progress
+					:percentage="detailRow?.result?.percent ?? 0"
+					:color="[{color:'#f56c6c',percentage:99.99},{color:'#67c23a',percentage:100}]"
+					:stroke-width="8"
+					:show-text="false"
+				/>
+			</div>
+
+			<!-- 用例列表 -->
+			<div class="detail-section-title">用例明细</div>
+			<div class="detail-case-list">
+				<div
+					v-for="(step, i) in (detailRow?.script || [])"
+					:key="i"
+					class="detail-case-item"
+					:class="(step.fail ?? 0) > 0 ? 'item-fail' : 'item-pass'"
+				>
+					<div class="case-status-bar" :class="(step.fail ?? 0) > 0 ? 'bar-fail' : 'bar-pass'" />
+					<div class="case-item-body">
+						<div class="case-item-top">
+							<span class="case-index" :class="(step.fail ?? 0) > 0 ? 'idx-fail' : 'idx-pass'">{{ i + 1 }}</span>
+							<span class="case-name">{{ step.name }}</span>
+							<el-tag
+								:type="(step.fail ?? 0) === 0 ? 'success' : 'danger'"
+								size="small"
+								effect="dark"
+								round
+								style="margin-left:auto;flex-shrink:0"
+							>{{ (step.fail ?? 0) === 0 ? '✓ 通过' : '✗ 失败' }}</el-tag>
+						</div>
+						<div v-if="step.pass !== undefined || step.fail !== undefined" class="case-item-stats">
+							<span class="stat-pass">通过 {{ step.pass ?? 0 }} 步</span>
+							<span class="stat-sep">·</span>
+							<span class="stat-fail">失败 {{ step.fail ?? 0 }} 步</span>
+						</div>
+					</div>
+				</div>
+				<div v-if="!detailRow?.script?.length" class="detail-empty">
+					暂无用例明细
+				</div>
+			</div>
+		</el-drawer>
 	</div>
 </template>
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { Close } from '@element-plus/icons-vue';
 import { useApiAutomationApi } from '/@/api/v1/api_automation';
 import { getExecutionStatusMeta } from '/@/utils/executionStatus';
+
+const props = withDefaults(defineProps<{ serviceId?: number }>(), { serviceId: 0 });
 
 const {
 	get_api_script_result_list,
@@ -161,6 +232,7 @@ const get_script_result_list = async () => {
 			page: searchParams.value.currentPage,
 			pageSize: searchParams.value.pageSize,
 			search: searchParams.value.search,
+			...(props.serviceId ? { api_service_id: props.serviceId } : {}),
 		});
 		const raw = res?.data;
 		const list = Array.isArray(raw?.content) ? raw.content : (Array.isArray(raw) ? raw : []);
@@ -217,6 +289,14 @@ const rerun = async (row: any) => {
 	}
 };
 
+const detailDrawerVisible = ref(false);
+const detailRow = ref<any>(null);
+
+const viewDetail = (row: any) => {
+	detailRow.value = row;
+	detailDrawerVisible.value = true;
+};
+
 const del_run = async (row: any) => {
 	try {
 		await ElMessageBox.confirm(
@@ -243,11 +323,54 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.result-list-container {
-	padding: 10px;
-}
+.result-list-container { padding: 10px; }
+.action-cell { white-space: nowrap; }
 
-.action-cell {
-	white-space: nowrap;
-}
+/* 抽屉头部 */
+.drawer-header { display: flex; align-items: flex-start; justify-content: space-between; width: 100%; }
+.drawer-header-info { flex: 1; min-width: 0; }
+.drawer-title { font-size: 16px; font-weight: 600; color: var(--el-text-color-primary); margin-bottom: 4px; word-break: break-all; }
+.drawer-subtitle { font-size: 12px; color: var(--el-text-color-placeholder); }
+.drawer-close { font-size: 20px; color: var(--el-text-color-placeholder); cursor: pointer; flex-shrink: 0; margin-left: 12px; }
+.drawer-close:hover { color: var(--el-text-color-regular); }
+
+/* 汇总卡片 */
+.detail-summary-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+.summary-card { background: linear-gradient(135deg, var(--el-fill-color-light), var(--el-bg-color)); border: 1px solid var(--el-border-color-lighter); border-radius: 10px; padding: 16px 12px; text-align: center; transition: all .2s; }
+.summary-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+.sc-val { font-size: 26px; font-weight: 700; color: var(--el-text-color-primary); margin-bottom: 4px; }
+.sc-label { font-size: 12px; color: var(--el-text-color-placeholder); letter-spacing: .5px; }
+.pass-card { background: linear-gradient(135deg, #f0f9ff, #e6f7ff); border-color: #b7eb8f; }
+.pass-card .sc-val { color: #52c41a; }
+.fail-card { background: linear-gradient(135deg, #fff1f0, #ffebe8); border-color: #ffccc7; }
+.fail-card .sc-val { color: #ff4d4f; }
+.rate-card { background: linear-gradient(135deg, #f9f0ff, #f3e8ff); border-color: #d3adf7; }
+.rate-card .sc-val { color: #722ed1; }
+
+/* 进度条 */
+.detail-progress { margin-bottom: 20px; }
+
+/* 区块标题 */
+.detail-section-title { font-size: 13px; font-weight: 600; color: var(--el-text-color-primary); margin-bottom: 12px; padding-left: 10px; border-left: 3px solid #409eff; }
+
+/* 用例列表 */
+.detail-case-list { display: flex; flex-direction: column; gap: 10px; }
+.detail-case-item { position: relative; background: var(--el-bg-color); border: 1px solid var(--el-border-color-lighter); border-radius: 8px; overflow: hidden; transition: all .2s; }
+.detail-case-item:hover { box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.item-pass { border-left-color: #52c41a; border-left-width: 3px; }
+.item-fail { border-left-color: #ff4d4f; border-left-width: 3px; }
+.case-status-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+.bar-pass { background: linear-gradient(to bottom, #52c41a, #95de64); }
+.bar-fail { background: linear-gradient(to bottom, #ff4d4f, #ff7875); }
+.case-item-body { padding: 12px 14px 12px 18px; }
+.case-item-top { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.case-index { width: 24px; height: 24px; border-radius: 50%; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.idx-pass { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
+.idx-fail { background: #fff1f0; color: #ff4d4f; border: 1px solid #ffccc7; }
+.case-name { font-size: 13px; color: var(--el-text-color-primary); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.case-item-stats { display: flex; align-items: center; gap: 6px; font-size: 12px; padding-left: 34px; }
+.stat-pass { color: #52c41a; }
+.stat-fail { color: #ff4d4f; }
+.stat-sep { color: var(--el-text-color-placeholder); }
+.detail-empty { text-align: center; color: var(--el-text-color-placeholder); padding: 40px 0; font-size: 13px; }
 </style>

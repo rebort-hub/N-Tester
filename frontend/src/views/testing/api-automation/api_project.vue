@@ -19,7 +19,9 @@
 						<el-button @click="resetSearch">重置</el-button>
 					</div>
 					<div class="project-topbar-right">
-						<el-button v-auth="'apiAutomation:project:add'" type="primary" @click="openAddProject">新增项目</el-button>
+						<el-tooltip content="在「项目管理」中创建项目" placement="top">
+							<el-button type="info" plain size="small">项目来源：全局项目管理</el-button>
+						</el-tooltip>
 					</div>
 				</div>
 			</el-card>
@@ -29,9 +31,11 @@
 					<el-table-column prop="id" label="ID" width="80" />
 					<el-table-column prop="name" label="项目名称" />
 					<el-table-column prop="description" label="描述" />
-					<el-table-column label="创建时间" width="200">
+					<el-table-column label="状态" width="100">
 						<template #default="{ row }">
-							{{ row.create_time ? String(row.create_time).replace('T', ' ') : '-' }}
+							<el-tag :type="row.status==='active'?'success':row.status==='paused'?'warning':'info'" size="small">
+								{{ row.status==='active'?'活跃':row.status==='paused'?'暂停':row.status==='completed'?'已完成':'已归档' }}
+							</el-tag>
 						</template>
 					</el-table-column>
 					<el-table-column label="服务" width="200">
@@ -49,11 +53,6 @@
 									</el-dropdown-menu>
 								</template>
 							</el-dropdown>
-						</template>
-					</el-table-column>
-					<el-table-column label="操作" width="120">
-						<template #default="{ row }">
-							<el-button v-auth="'apiAutomation:project:delete'" type="danger" size="small" @click="removeProject(row)">删除</el-button>
 						</template>
 					</el-table-column>
 				</el-table>
@@ -77,8 +76,7 @@
 			<el-card class="box-card service-toolbar-card">
 				<div class="service-topbar">
 					<div class="service-topbar-left">
-						<el-button :icon="Back" @click="goBack">返回项目</el-button>
-						<span class="service-title">{{ current_project?.name }} - 服务详情</span>
+						<span class="service-title">{{ current_service?.name || current_project?.name }}</span>
 					</div>
 					<div class="service-topbar-right">
 						<div class="doc-import-row">
@@ -86,18 +84,6 @@
 								<el-option label="Swagger" value="swagger" />
 								<el-option label="Apifox" value="apifox" />
 							</el-select>
-							<!-- 仅隐藏上传入口 UI，保留上传解析逻辑 -->
-							<!--
-							<el-upload
-								v-if="doc_source_type === 'apifox'"
-								:show-file-list="false"
-								:auto-upload="false"
-								:on-change="handleApifoxFileChange"
-								accept=".json,application/json"
-							>
-								<el-button type="success" size="small">导入Apifox文件</el-button>
-							</el-upload>
-							-->
 							<el-input
 								v-model="doc_source_url"
 								:placeholder="doc_source_type === 'apifox' ? '输入 Apifox 文档URL（必填）' : '输入 Swagger 文档URL（JSON）'"
@@ -117,41 +103,20 @@
 						</div>
 						<div class="service-tools-row">
 							<el-select v-model="env_id" placeholder="选择环境" style="width: 150px;">
-							<el-option v-for="env in env_list" :key="env.id" :label="env.name" :value="env.id" />
-						</el-select>
-						<el-button :icon="Setting" type="primary" size="small" style="margin-left: 8px" @click="openEnvManage">
-							环境管理
-						</el-button>
-						<el-popover placement="bottom" :width="800" trigger="click">
-							<template #reference>
-								<el-button type="warning" size="small" style="margin-left: 8px">错误码管理</el-button>
-							</template>
-							<ApiCodePopover />
-						</el-popover>
-						<el-popover placement="bottom" :width="1000" trigger="click">
-							<template #reference>
-								<el-button type="success" size="small" style="margin-left: 8px">公共函数</el-button>
-							</template>
-							<ApiFunctionPopover />
-						</el-popover>
-						<el-popover placement="bottom" :width="900" trigger="click">
-							<template #reference>
-								<el-button type="info" size="small" style="margin-left: 8px">直连数据库</el-button>
-							</template>
-							<ApiDbPopover />
-						</el-popover>
-						<el-popover placement="bottom" :width="1000" trigger="click">
-							<template #reference>
-								<el-button type="danger" size="small" style="margin-left: 8px">参数依赖</el-button>
-							</template>
-							<ApiParamsPopover />
-						</el-popover>
-						<el-popover placement="bottom" :width="800" trigger="click">
-							<template #reference>
-								<el-button type="primary" size="small" style="margin-left: 8px">全局变量</el-button>
-							</template>
-							<ApiVarPopover />
-						</el-popover>
+								<el-option v-for="env in env_list" :key="env.id" :label="env.name" :value="env.id" />
+							</el-select>
+							<el-popover placement="bottom" :width="900" trigger="click">
+								<template #reference>
+									<el-button type="info" size="small" style="margin-left: 8px">直连数据库</el-button>
+								</template>
+								<ApiDbPopover />
+							</el-popover>
+							<el-popover placement="bottom" :width="800" trigger="click">
+								<template #reference>
+									<el-button type="primary" size="small" style="margin-left: 8px">全局变量</el-button>
+								</template>
+								<ApiVarPopover />
+							</el-popover>
 						</div>
 					</div>
 				</div>
@@ -259,6 +224,7 @@
 										:tree_list="api_tree_data"
 										:params_list="params_list"
 										:local_db_list="local_db_list"
+										:service-id="current_service?.id"
 										@caseSaved="loadServiceDetail"
 										@apiSaved="loadServiceDetail"
 									/>
@@ -363,17 +329,6 @@
 			</template>
 		</el-dialog>
 
-		<el-dialog v-model="addProjectRef" :title="dialogTitle" width="500px" destroy-on-close>
-			<el-form :model="project_form" label-width="90px">
-				<el-form-item label="项目名称" required><el-input v-model="project_form.name" /></el-form-item>
-				<el-form-item label="描述"><el-input v-model="project_form.description" type="textarea" /></el-form-item>
-			</el-form>
-			<template #footer>
-				<el-button @click="addProjectRef = false">取消</el-button>
-				<el-button type="primary" @click="confirmAddProject">确定</el-button>
-			</template>
-		</el-dialog>
-
 		<!-- 新增服务 -->
 		<el-dialog v-model="addServiceDialogVisible" title="新增服务" width="520px" destroy-on-close>
 			<el-form :model="service_form" label-width="90px">
@@ -424,20 +379,18 @@ import ApiFunctionPopover from './components/ApiFunctionPopover.vue';
 import ApiDbPopover from './components/ApiDbPopover.vue';
 import ApiParamsPopover from './components/ApiParamsPopover.vue';
 import ApiVarPopover from './components/ApiVarPopover.vue';
+import { useProjectApi } from '/@/api/v1/projects/project';
 import {
-	add_api_project,
 	add_api_service,
 	add_env,
 	add_menu,
 	api_env,
 	api_info,
-	api_project,
 	api_send,
 	api_service,
 	api_tree,
 	api_tree_list,
 	copy_menu,
-	del_api_project,
 	del_api_service,
 	del_env,
 	del_menu,
@@ -452,7 +405,12 @@ import {
 
 type ShowType = 'project' | 'service_detail' | 'scene_manage' | 'result_list';
 
+const props = defineProps<{ initialServiceId?: number }>();
+const emit = defineEmits<{ (e: 'service-changed', serviceId: number): void }>();
+
 const show_type = ref<ShowType>('project');
+
+const { getList: getGlobalProjectList } = useProjectApi();
 
 // -------------------- 项目表格 --------------------
 const project_list = ref<any[]>([]);
@@ -467,13 +425,19 @@ const current_service = ref<any>(null);
 
 const getProjectList = async () => {
 	show_type.value = 'project';
-	const res: any = await api_project({ 
-		page: project_searchParams.value.currentPage, 
-		pageSize: project_searchParams.value.pageSize,
-		search: project_searchParams.value.search
-	});
-	project_list.value = res.data?.content || [];
-	project_total.value = res.data?.total || 0;
+	try {
+		const res: any = await getGlobalProjectList({
+			page: project_searchParams.value.currentPage,
+			page_size: project_searchParams.value.pageSize,
+			name: project_searchParams.value.search.name || undefined,
+		});
+		const raw = res?.data;
+		project_list.value = Array.isArray(raw?.items) ? raw.items : (Array.isArray(raw?.content) ? raw.content : []);
+		project_total.value = raw?.total || 0;
+	} catch {
+		project_list.value = [];
+		project_total.value = 0;
+	}
 };
 
 const searchProject = () => {
@@ -605,6 +569,8 @@ const enterServiceDetail = async (project: any, service: any) => {
 	api_tree_filter.value = '';
 	await loadServiceOptionsForProject(Number(project.id));
 	await loadServiceDetail();
+	// 通知父组件服务已切换
+	if (service?.id != null) emit('service-changed', Number(service.id));
 };
 
 const enterSceneManage = async (project: any, service: any) => {
@@ -1102,39 +1068,41 @@ const goBack = () => {
 	}
 };
 
-// -------------------- 对话框 --------------------
-const addProjectRef = ref(false);
-const dialogTitle = ref('');
-
-const project_form = ref({ name: '', description: '' });
-
-const openAddProject = () => {
-	dialogTitle.value = '新增项目';
-	project_form.value = { name: '', description: '' };
-	addProjectRef.value = true;
-};
-
-const confirmAddProject = async () => {
-	const res: any = await add_api_project(project_form.value);
-	if (res.code === 200) {
-		ElMessage.success('添加成功');
-		addProjectRef.value = false;
-		await getProjectList();
-	}
-};
-
-const removeProject = async (row: any) => {
-	await ElMessageBox.confirm('确定删除该项目吗？', '提示', { type: 'warning' });
-	const res: any = await del_api_project({ id: row.id });
-	if (res.code === 200) {
-		ElMessage.success('删除成功');
-		await getProjectList();
-	}
-};
-
 // -------------------- 生命周期 --------------------
 onMounted(async () => {
-	await getProjectList();
+	if (props.initialServiceId) {
+		try {
+			const svcRes: any = await api_service({ page: 1, pageSize: 200, search: {} });
+			const allServices: any[] = svcRes.data?.content || [];
+			const targetSvc = allServices.find((s: any) => Number(s.id) === Number(props.initialServiceId));
+
+			if (targetSvc) {
+				// 从全局项目管理查询项目信息
+				const projRes: any = await getGlobalProjectList({ page: 1, page_size: 200 });
+				const allProjects: any[] = projRes?.data?.items || projRes?.data?.content || [];
+				const targetProj = allProjects.find((p: any) => Number(p.id) === Number(targetSvc.api_project_id))
+					|| { id: targetSvc.api_project_id, name: '-' };
+
+				current_project.value = targetProj;
+				current_service.value = targetSvc;
+				selected_service_id.value = Number(props.initialServiceId);
+				show_type.value = 'service_detail';
+				api_tabs.value = [];
+				api_active_tab.value = '';
+				api_tree_data.value = [];
+				api_tree_filter.value = '';
+
+				await loadServiceOptionsForProject(Number(targetSvc.api_project_id));
+				await loadServiceDetail();
+			} else {
+				await getProjectList();
+			}
+		} catch {
+			await getProjectList();
+		}
+	} else {
+		await getProjectList();
+	}
 });
 </script>
 
@@ -1176,19 +1144,26 @@ onMounted(async () => {
 	flex-direction: column;
 	min-height: 0;
 	overflow: auto;
+	background: var(--el-bg-color-page);
 }
 
 .service-toolbar-card {
 	flex: 0 0 auto;
+	border-radius: 0 !important;
+	border-left: none;
+	border-right: none;
+	border-top: none;
+	box-shadow: 0 1px 3px rgba(0,0,0,.08) !important;
 }
 
 .service-toolbar-card :deep(.el-card__body) {
-	padding: 12px 16px;
+	padding: 10px 16px;
+	background: var(--el-bg-color);
 }
 
 .service-topbar {
 	display: flex;
-	align-items: flex-start;
+	align-items: center;
 	justify-content: space-between;
 	gap: 12px;
 }
@@ -1200,15 +1175,16 @@ onMounted(async () => {
 }
 
 .service-title {
-	font-size: 16px;
-	font-weight: bold;
-	color: var(--el-text-color-primary);
+	font-size: 15px;
+	font-weight: 600;
+	color: #1a1a2e;
+	letter-spacing: .2px;
 }
 
 .service-topbar-right {
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
+	gap: 6px;
 	flex: 1;
 	min-width: 0;
 }
@@ -1224,32 +1200,33 @@ onMounted(async () => {
 	display: flex;
 	align-items: center;
 	flex-wrap: wrap;
+	gap: 4px;
 }
 
 .doc-source-select {
-	width: 120px;
+	width: 110px;
 }
 
 .doc-url-input {
-	width: 320px;
+	width: 300px;
 }
 
 .doc-cookie-input {
-	width: 320px;
+	width: 300px;
 }
 
 .service-main {
 	display: flex;
-	gap: 10px;
-	margin-top: 10px;
+	gap: 8px;
+	margin-top: 8px;
 	flex: 1 1 auto;
 	min-height: 0;
-	padding-bottom: 8px;
+	padding: 0 8px 8px;
 }
 
 .service-left {
-	width: 360px;
-	flex: 0 0 360px;
+	width: 280px;
+	flex: 0 0 280px;
 	min-height: 0;
 }
 
@@ -1264,6 +1241,8 @@ onMounted(async () => {
 	display: flex;
 	flex-direction: column;
 	min-height: 0;
+	border-radius: 8px !important;
+	box-shadow: 0 1px 4px rgba(0,0,0,.06) !important;
 }
 
 .api-tree-card :deep(.el-card__body),
@@ -1272,29 +1251,35 @@ onMounted(async () => {
 	min-height: 0;
 	display: flex;
 	flex-direction: column;
+	padding: 0;
 }
 
 .tree-container {
 	height: 100%;
 	display: flex;
 	flex-direction: column;
-	padding: 16px;
+	padding: 12px;
 }
 
 .tree-title {
-	margin-bottom: 12px;
+	margin-bottom: 10px;
+	font-size: 13px;
+	font-weight: 600;
+	color: #303133;
 }
 
 .tree-actions-bar {
 	display: flex;
 	align-items: center;
-	margin-bottom: 16px;
+	margin-bottom: 10px;
+	gap: 6px;
 }
 
 .tree-service-bar {
 	display: flex;
 	align-items: center;
-	margin-bottom: 12px;
+	margin-bottom: 10px;
+	gap: 6px;
 }
 
 .tree-content {
@@ -1384,7 +1369,6 @@ onMounted(async () => {
 	display: block;
 	font-size: 12px;
 	line-height: 18px;
-	max-width: 160px;
 }
 
 .node-actions {

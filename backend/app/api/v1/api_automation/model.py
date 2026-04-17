@@ -25,6 +25,12 @@ class ApiServiceModel(Base):
     api_project_id = Column(BigInteger, nullable=False, comment='项目ID')
     img = Column(String(255), comment='服务图标')
     description = Column(Text, comment='服务描述')
+    source_type = Column(String(50), comment='接口文档类型：swagger/apifox')
+    source_addr = Column(String(500), comment='接口文档地址')
+    last_pull_status = Column(Integer, default=0, comment='拉取状态：0=未拉取，1=成功，2=失败')
+    manager = Column(BigInteger, comment='负责人用户ID')
+    business_id = Column(BigInteger, comment='业务线ID')
+    sort = Column(Integer, default=0, comment='排序权重')
 
 
 class ApiEnvironmentModel(Base):
@@ -104,6 +110,7 @@ class ApiScriptResultListModel(Base):
     result = Column(JSON, comment='执行结果')
     start_time = Column(DateTime, server_default=func.now(), comment='开始时间')
     end_time = Column(DateTime, comment='结束时间')
+    api_service_id = Column(BigInteger, comment='关联服务ID，可为空（兼容历史数据）')
 
 
 class ApiScriptResultModel(Base):
@@ -173,3 +180,25 @@ class ApiUpdateModel(Base):
     req = Column(JSON, comment="变更内容")
     api_id = Column(BigInteger, nullable=False, comment="接口ID")
     api_service_id = Column(BigInteger, nullable=False, comment="服务ID")
+
+
+class ApiSuiteModel(Base):
+    """API用例集模型"""
+    __tablename__ = 'api_automation_suites'
+
+    name = Column(String(255), nullable=False, comment='用例集名称')
+    parent = Column(BigInteger, comment='父用例集ID，顶级为null')
+    api_service_id = Column(BigInteger, nullable=False, comment='所属服务ID')
+    sort = Column(Integer, default=0, comment='同级排序权重')
+
+
+class ApiCaseModel(Base):
+    """API用例模型"""
+    __tablename__ = 'api_automation_cases'
+
+    name = Column(String(255), nullable=False, comment='用例名称')
+    description = Column(String(500), comment='用例描述')
+    suite_id = Column(BigInteger, nullable=False, comment='所属用例集ID')
+    script = Column(JSON, comment='步骤列表（接口步骤数组）')
+    status = Column(Integer, default=0, comment='状态：0=未执行，1=通过，2=失败')
+    case_type = Column(Integer, default=1, comment='用例类型：1=正向，2=负向，3=边界值，4=安全性，5=其他')

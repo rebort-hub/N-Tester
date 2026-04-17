@@ -317,14 +317,22 @@ class ApiAutomationService:
     async def get_services_paged(db: AsyncSession, body: Dict[str, Any], user_id: int) -> Dict[str, Any]:
         page, page_size = ApiAutomationService._extract_page(body)
         search = body.get("search") or {}
-        name_like = ApiAutomationService._extract_contains(search, "name__contains", "name__icontains", "name")
+        # 支持顶层直传或 search 子对象传入
+        name_like = ApiAutomationService._extract_contains(search, "name__contains", "name__icontains", "name") \
+                    or ApiAutomationService._extract_contains(body, "name")
         project_id = body.get("project_id") or body.get("api_project_id") or search.get("api_project_id")
+        manager = body.get("manager") or search.get("manager")
+        business_id = body.get("business_id") or search.get("business_id")
         stmt = select(ApiServiceModel).where(ApiServiceModel.enabled_flag == 1, ApiServiceModel.created_by == user_id)
         if project_id:
             stmt = stmt.where(ApiServiceModel.api_project_id == int(project_id))
         if name_like:
             stmt = stmt.where(ApiServiceModel.name.like(f"%{name_like}%"))
-        stmt = stmt.order_by(ApiServiceModel.id.desc())
+        if manager:
+            stmt = stmt.where(ApiServiceModel.manager == int(manager))
+        if business_id:
+            stmt = stmt.where(ApiServiceModel.business_id == int(business_id))
+        stmt = stmt.order_by(ApiServiceModel.sort.asc(), ApiServiceModel.id.desc())
         rows = (await db.execute(stmt)).scalars().all()
         total = len(rows)
         start = (page - 1) * page_size
@@ -379,6 +387,12 @@ class ApiAutomationService:
             api_project_id=int(body["api_project_id"]),
             img=str(body.get("img") or ""),
             description=str(body.get("description") or ""),
+            source_type=body.get("source_type"),
+            source_addr=body.get("source_addr"),
+            last_pull_status=0,
+            manager=body.get("manager"),
+            business_id=body.get("business_id"),
+            sort=0,
             created_by=user_id,
             updated_by=user_id,
         )
@@ -387,16 +401,14 @@ class ApiAutomationService:
 
     @staticmethod
     async def edit_service(db: AsyncSession, service_id: int, body: Dict[str, Any], user_id: int) -> None:
+        values: Dict[str, Any] = {"updated_by": user_id}
+        for field in ("name", "api_project_id", "img", "description", "source_type", "source_addr", "manager", "business_id"):
+            if field in body and body[field] is not None:
+                values[field] = body[field]
         await db.execute(
             update(ApiServiceModel)
             .where(ApiServiceModel.id == int(service_id), ApiServiceModel.enabled_flag == 1, ApiServiceModel.created_by == user_id)
-            .values(
-                name=body.get("name"),
-                api_project_id=body.get("api_project_id"),
-                img=body.get("img"),
-                description=body.get("description"),
-                updated_by=user_id,
-            )
+            .values(**values)
         )
         await db.commit()
 
@@ -1619,6 +1631,12 @@ class ApiAutomationService:
                         )
                     )
 
+        # 更新拉取状态为成功
+        await db.execute(
+            update(ApiServiceModel)
+            .where(ApiServiceModel.id == api_service_id, ApiServiceModel.enabled_flag == 1)
+            .values(last_pull_status=1)
+        )
         await db.commit()
         return {
             "source_type": source_type,
@@ -1831,6 +1849,27 @@ class ApiAutomationService:
         )
         db.add(menu)
         await db.commit()
+
+    @staticmethod
+    async def save_api_case_to_suite(db: AsyncSession, body: Dict[str, Any], user_id: int) -> Dict[str, Any]:
+        """将接口调试结果保存为用例，存入指定用例集"""
+        from .model import ApiCaseModel
+        case = ApiCaseModel(
+            name=str(body["name"]),
+            description=body.get("description") or "",
+            suite_id=int(body["suite_id"]),
+            script=body.get("script") or [],
+            status=0,
+            case_type=int(body.get("case_type") or 1),
+            created_by=user_id,
+            updated_by=user_id,
+        )
+        db.add(case)
+        await db.commit()
+        await db.refresh(case)
+        d = case.__dict__.copy()
+        d.pop("_sa_instance_state", None)
+        return d
 
   
     @staticmethod
@@ -2576,40 +2615,74 @@ class ApiAutomationService:
     async def _send_request(method: int, url: str, headers: Dict[str, Any], params: Dict[str, Any], body_type: int, body: Any,
                             form_data: Dict[str, Any], form_urlencoded: Dict[str, Any], file_paths: List[str], config: Dict[str, Any]) -> Dict[str, Any]:
         timeout = (config.get("req_timeout", 5), config.get("res_timeout", 5))
+        ssl_verify = config.get("ssl_verify", True)
+        allow_redirects = config.get("allow_redirects", True)
         try:
             if method == 1:
-                r = requests.get(url, headers=headers, params=params, timeout=timeout)
+                r = requests.get(url, headers=headers, params=params, timeout=timeout, verify=ssl_verify, allow_redirects=allow_redirects)
             elif method == 2:
                 if body_type in (1, 2):
-                    r = requests.post(url, headers=headers, json=(body if body_type == 2 else {}), timeout=timeout)
+                    r = requests.post(url, headers=headers, json=(body if body_type == 2 else {}), timeout=timeout, verify=ssl_verify, allow_redirects=allow_redirects)
                 elif body_type == 3:
-                    r = requests.post(url, headers=headers, data=form_data, timeout=timeout)
+                    r = requests.post(url, headers=headers, data=form_data, timeout=timeout, verify=ssl_verify, allow_redirects=allow_redirects)
                 elif body_type == 4:
-                    r = requests.post(url, headers=headers, data=form_urlencoded, timeout=timeout)
+                    r = requests.post(url, headers=headers, data=form_urlencoded, timeout=timeout, verify=ssl_verify, allow_redirects=allow_redirects)
                 elif body_type == 5:
                     files = []
                     for p in file_paths or []:
                         files.append(("file", (p.split("/")[-1], open(p, "rb"), "application/octet-stream")))
-                    r = requests.request("POST", url=url, files=files, data={}, timeout=timeout)
+                    r = requests.request("POST", url=url, files=files, data={}, timeout=timeout, verify=ssl_verify, allow_redirects=allow_redirects)
                 else:
-                    r = requests.post(url, headers=headers, json=body, timeout=timeout)
+                    r = requests.post(url, headers=headers, json=body, timeout=timeout, verify=ssl_verify, allow_redirects=allow_redirects)
             elif method == 3:
-                r = requests.put(url, headers=headers, params=params, json=body, timeout=timeout)
+                r = requests.put(url, headers=headers, params=params, json=body, timeout=timeout, verify=ssl_verify, allow_redirects=allow_redirects)
             elif method == 4:
-                r = requests.delete(url, headers=headers, params=params, timeout=timeout)
+                r = requests.delete(url, headers=headers, params=params, timeout=timeout, verify=ssl_verify, allow_redirects=allow_redirects)
             else:
-                r = requests.request("GET", url=url, headers=headers, timeout=timeout)
+                r = requests.request("GET", url=url, headers=headers, timeout=timeout, verify=ssl_verify, allow_redirects=allow_redirects)
 
             try:
                 body_json = r.json()
             except Exception:
                 body_json = {"raw": r.text}
+
+            # cookies
+            cookies_list = [
+                {
+                    "name": c.name,
+                    "value": c.value,
+                    "domain": c.domain or "",
+                    "path": c.path or "/",
+                    "expires": str(c.expires) if c.expires else "",
+                    "httpOnly": False,
+                    "secure": bool(c._rest.get("Secure")) if hasattr(c, "_rest") else False,
+                }
+                for c in r.cookies
+            ]
+
+            # raw_request — actual request sent by requests
+            prep = r.request
+            raw_req_headers = dict(prep.headers) if prep and prep.headers else {}
+            raw_req_body = ""
+            if prep and prep.body:
+                try:
+                    raw_req_body = prep.body.decode("utf-8") if isinstance(prep.body, bytes) else str(prep.body)
+                except Exception:
+                    raw_req_body = str(prep.body)
+
             return {
                 "code": r.status_code,
                 "res_time": str(round(r.elapsed.total_seconds() * 1000, 2)),
                 "body": body_json,
                 "header": dict(r.headers),
                 "size": str((len(r.text.encode("utf-8")) if r.text else 0) + (len(str(r.headers).encode("utf-8")))),
+                "cookies": cookies_list,
+                "raw_request": {
+                    "method": prep.method if prep else "",
+                    "url": prep.url if prep else url,
+                    "headers": raw_req_headers,
+                    "body": raw_req_body,
+                },
             }
         except Exception as e:
             return {
@@ -2618,6 +2691,8 @@ class ApiAutomationService:
                 "header": {},
                 "size": 0,
                 "res_time": 0,
+                "cookies": [],
+                "raw_request": None,
             }
 
     @staticmethod
@@ -2703,6 +2778,23 @@ class ApiAutomationService:
         res["assert"] = assert_list
         res["time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+        # console: collect log lines from before/after/assert results
+        console_logs: List[Dict[str, Any]] = []
+        for item in before_list:
+            level = "info" if item.get("status") == 1 else "error"
+            console_logs.append({"level": level, "msg": f"[前置] {item.get('message', '')}"})
+        console_logs.append({
+            "level": "info" if int(res.get("code") or 0) < 400 else "error",
+            "msg": f"[请求] {res.get('raw_request', {}).get('method', '')} {res.get('raw_request', {}).get('url', '')} → {res.get('code')} ({res.get('res_time')} ms)",
+        })
+        for item in after_list:
+            level = "info" if item.get("status") == 1 else "error"
+            console_logs.append({"level": level, "msg": f"[后置] {item.get('message', '')}"})
+        for item in assert_list:
+            level = "info" if item.get("status") == 1 else "error"
+            console_logs.append({"level": level, "msg": f"[断言] {item.get('message', '')}"})
+        res["console"] = console_logs
+
         db.add(
             ApiResultModel(
                 req={
@@ -2768,6 +2860,7 @@ class ApiAutomationService:
                 script=[],
                 config=data.get("config") or {},
                 result={},
+                api_service_id=data.get("api_service_id"),
                 created_by=user_id,
                 updated_by=user_id,
             )
@@ -3131,6 +3224,7 @@ class ApiAutomationService:
         page: int,
         page_size: int,
         search_name: str = "",
+        api_service_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         stmt = select(ApiScriptResultListModel).where(
             ApiScriptResultListModel.enabled_flag == 1,
@@ -3139,6 +3233,8 @@ class ApiAutomationService:
         name_kw = (search_name or "").strip()
         if name_kw:
             stmt = stmt.where(ApiScriptResultListModel.name.contains(name_kw))
+        if api_service_id:
+            stmt = stmt.where(ApiScriptResultListModel.api_service_id == int(api_service_id))
         stmt = stmt.order_by(ApiScriptResultListModel.id.desc())
         rows = (await db.execute(stmt)).scalars().all()
         total = len(rows)
@@ -3789,3 +3885,318 @@ class ApiAutomationService:
             return True
         except Exception:
             return False
+
+
+    # ── 代码生成辅助 ──────────────────────────────────────────────────
+
+    @staticmethod
+    async def get_apis_by_ids(db: AsyncSession, api_ids: list) -> list:
+        """根据接口 ID 列表批量获取接口数据（用于代码生成）"""
+        if not api_ids:
+            return []
+        result = await db.execute(
+            select(ApiModel).where(ApiModel.id.in_(api_ids), ApiModel.enabled_flag == 1)
+        )
+        rows = result.scalars().all()
+        return [
+            {
+                "id": r.id,
+                "name": r.name or r.url,
+                "url": r.url,
+                "req": r.req or {},
+            }
+            for r in rows
+        ]
+
+    @staticmethod
+    async def get_service_base_url(db: AsyncSession, service_id: int) -> str:
+        """尝试从服务关联的环境配置中获取 base_url"""
+        try:
+            # 查找该服务下第一个环境的 host 配置
+            result = await db.execute(
+                select(ApiEnvironmentModel).where(ApiEnvironmentModel.enabled_flag == 1).limit(1)
+            )
+            env = result.scalar_one_or_none()
+            if env and env.config:
+                cfg = env.config if isinstance(env.config, list) else []
+                for item in cfg:
+                    if item.get("key") in ("host", "base_url", "baseUrl"):
+                        return str(item.get("value", ""))
+        except Exception:
+            pass
+        return ""
+
+
+    # ── 服务排序 ──────────────────────────────────────────────────────
+
+    @staticmethod
+    async def sort_services(db: AsyncSession, ids: List[int], user_id: int) -> None:
+        """按传入 ID 列表顺序更新服务的 sort 字段"""
+        for idx, service_id in enumerate(ids):
+            await db.execute(
+                update(ApiServiceModel)
+                .where(ApiServiceModel.id == int(service_id), ApiServiceModel.enabled_flag == 1)
+                .values(sort=idx, updated_by=user_id)
+            )
+        await db.commit()
+
+    # ── 用例集（Suite）CRUD ───────────────────────────────────────────
+
+    @staticmethod
+    def _build_suite_tree(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """将平铺的用例集列表构建为树形结构"""
+        by_id: Dict[int, Dict[str, Any]] = {}
+        roots: List[Dict[str, Any]] = []
+        for it in items:
+            node = dict(it)
+            node["children"] = []
+            by_id[node["id"]] = node
+        for node in by_id.values():
+            pid = node.get("parent")
+            if pid is None or pid not in by_id:
+                roots.append(node)
+            else:
+                by_id[pid]["children"].append(node)
+        return roots
+
+    @staticmethod
+    async def get_suite_list(db: AsyncSession, api_service_id: int, user_id: int) -> List[Dict[str, Any]]:
+        from .model import ApiSuiteModel
+        stmt = (
+            select(ApiSuiteModel)
+            .where(ApiSuiteModel.enabled_flag == 1, ApiSuiteModel.api_service_id == int(api_service_id))
+            .order_by(ApiSuiteModel.sort.asc(), ApiSuiteModel.id.asc())
+        )
+        rows = (await db.execute(stmt)).scalars().all()
+        items = []
+        for r in rows:
+            d = r.__dict__.copy()
+            d.pop("_sa_instance_state", None)
+            items.append(d)
+        return ApiAutomationService._build_suite_tree(items)
+
+    @staticmethod
+    async def add_suite(db: AsyncSession, body: Dict[str, Any], user_id: int) -> Dict[str, Any]:
+        from .model import ApiSuiteModel
+        suite = ApiSuiteModel(
+            name=str(body["name"]),
+            parent=body.get("parent"),
+            api_service_id=int(body["api_service_id"]),
+            sort=0,
+            created_by=user_id,
+            updated_by=user_id,
+        )
+        db.add(suite)
+        await db.commit()
+        await db.refresh(suite)
+        d = suite.__dict__.copy()
+        d.pop("_sa_instance_state", None)
+        return d
+
+    @staticmethod
+    async def edit_suite(db: AsyncSession, suite_id: int, name: str, user_id: int) -> None:
+        from .model import ApiSuiteModel
+        await db.execute(
+            update(ApiSuiteModel)
+            .where(ApiSuiteModel.id == int(suite_id), ApiSuiteModel.enabled_flag == 1)
+            .values(name=name, updated_by=user_id)
+        )
+        await db.commit()
+
+    @staticmethod
+    async def delete_suite(db: AsyncSession, suite_id: int, user_id: int) -> None:
+        """级联删除用例集及其所有子用例集和用例"""
+        from .model import ApiSuiteModel, ApiCaseModel
+        # 递归收集所有子用例集 ID
+        all_ids: List[int] = [int(suite_id)]
+        queue = [int(suite_id)]
+        while queue:
+            current_ids = queue[:]
+            queue = []
+            children = (await db.execute(
+                select(ApiSuiteModel.id).where(
+                    ApiSuiteModel.enabled_flag == 1,
+                    ApiSuiteModel.parent.in_(current_ids),
+                )
+            )).scalars().all()
+            for cid in children:
+                all_ids.append(cid)
+                queue.append(cid)
+        # 删除所有用例
+        await db.execute(
+            update(ApiCaseModel)
+            .where(ApiCaseModel.suite_id.in_(all_ids), ApiCaseModel.enabled_flag == 1)
+            .values(enabled_flag=0, updated_by=user_id)
+        )
+        # 删除所有用例集
+        await db.execute(
+            update(ApiSuiteModel)
+            .where(ApiSuiteModel.id.in_(all_ids), ApiSuiteModel.enabled_flag == 1)
+            .values(enabled_flag=0, updated_by=user_id)
+        )
+        await db.commit()
+
+    @staticmethod
+    async def sort_suites(db: AsyncSession, ids: List[int], user_id: int) -> None:
+        from .model import ApiSuiteModel
+        for idx, suite_id in enumerate(ids):
+            await db.execute(
+                update(ApiSuiteModel)
+                .where(ApiSuiteModel.id == int(suite_id), ApiSuiteModel.enabled_flag == 1)
+                .values(sort=idx, updated_by=user_id)
+            )
+        await db.commit()
+
+    # ── 用例（Case）CRUD ──────────────────────────────────────────────
+
+    @staticmethod
+    async def get_case_list(db: AsyncSession, suite_id: int, user_id: int) -> List[Dict[str, Any]]:
+        from .model import ApiCaseModel
+        stmt = (
+            select(ApiCaseModel)
+            .where(ApiCaseModel.enabled_flag == 1, ApiCaseModel.suite_id == int(suite_id))
+            .order_by(ApiCaseModel.id.asc())
+        )
+        rows = (await db.execute(stmt)).scalars().all()
+        result = []
+        for r in rows:
+            d = r.__dict__.copy()
+            d.pop("_sa_instance_state", None)
+            result.append(d)
+        return result
+
+    @staticmethod
+    async def add_case(db: AsyncSession, body: Dict[str, Any], user_id: int) -> Dict[str, Any]:
+        from .model import ApiCaseModel
+        case = ApiCaseModel(
+            name=str(body["name"]),
+            description=body.get("description") or "",
+            suite_id=int(body["suite_id"]),
+            script=body.get("script") or [],
+            status=0,
+            case_type=int(body.get("case_type") or 1),
+            created_by=user_id,
+            updated_by=user_id,
+        )
+        db.add(case)
+        await db.commit()
+        await db.refresh(case)
+        d = case.__dict__.copy()
+        d.pop("_sa_instance_state", None)
+        return d
+
+    @staticmethod
+    async def edit_case(db: AsyncSession, case_id: int, body: Dict[str, Any], user_id: int) -> None:
+        from .model import ApiCaseModel
+        values: Dict[str, Any] = {"updated_by": user_id}
+        for field in ("name", "description", "script", "case_type"):
+            if field in body and body[field] is not None:
+                values[field] = body[field]
+        await db.execute(
+            update(ApiCaseModel)
+            .where(ApiCaseModel.id == int(case_id), ApiCaseModel.enabled_flag == 1)
+            .values(**values)
+        )
+        await db.commit()
+
+    @staticmethod
+    async def delete_case(db: AsyncSession, case_id: int, user_id: int) -> None:
+        from .model import ApiCaseModel
+        await db.execute(
+            update(ApiCaseModel)
+            .where(ApiCaseModel.id == int(case_id), ApiCaseModel.enabled_flag == 1)
+            .values(enabled_flag=0, updated_by=user_id)
+        )
+        await db.commit()
+
+    @staticmethod
+    async def run_api_case(db: AsyncSession, body: Dict[str, Any], user_id: int) -> Dict[str, Any]:
+        """执行用例：复用现有 run_api_script 逻辑，写入结果并关联 api_service_id"""
+        from .model import ApiCaseModel, ApiSuiteModel
+        case_ids = [int(i) for i in (body.get("case_ids") or [])]
+        env_id = body.get("env_id")
+        params_id = body.get("params_id")
+        task_name = body.get("name") or f"用例执行_{uuid.uuid4().hex[:8]}"
+
+        # 查询用例，获取 script 和所属服务 ID
+        cases = (await db.execute(
+            select(ApiCaseModel).where(ApiCaseModel.id.in_(case_ids), ApiCaseModel.enabled_flag == 1)
+        )).scalars().all()
+        if not cases:
+            raise ValueError("未找到有效用例")
+
+        # 通过第一个用例的 suite_id 获取 api_service_id
+        suite = (await db.execute(
+            select(ApiSuiteModel).where(ApiSuiteModel.id == cases[0].suite_id, ApiSuiteModel.enabled_flag == 1)
+        )).scalar_one_or_none()
+        api_service_id = suite.api_service_id if suite else None
+
+        # 构建 run_list（复用现有场景执行格式）
+        run_list = []
+        case_id_map = {}  # name -> case_id 映射
+        for case in cases:
+            case_name = f"{case.name}_{case.id}"  # 确保唯一性
+            run_list.append({
+                "name": case.name,  # 显示原始名称
+                "script": case.script or [],
+                "config": {"env_id": env_id, "params_id": params_id, "case_id": case.id},
+            })
+            case_id_map[case_name] = case.id
+
+        result_id = int(body.get("result_id") or uuid.uuid4().int % (10 ** 15))
+        run_body = {
+            "result_id": result_id,
+            "name": task_name,
+            "config": {"env_id": env_id, "params_id": params_id},
+            "run_list": run_list,
+            "api_service_id": api_service_id,
+        }
+        await ApiAutomationService.run_api_script(db, run_body, user_id)
+
+        # 执行完成后按用例单独更新状态
+        pass_count = 0
+        fail_count = 0
+        try:
+            from .model import ApiScriptResultModel
+            # 查询该批次所有步骤结果，按 menu_id 分组
+            result_rows = (await db.execute(
+                select(ApiScriptResultModel).where(
+                    ApiScriptResultModel.result_id == result_id,
+                    ApiScriptResultModel.enabled_flag == 1,
+                    ApiScriptResultModel.name != "执行结束",
+                ).order_by(ApiScriptResultModel.id.asc())
+            )).scalars().all()
+
+            # 按 menu_id 分组，判断每组是否全部通过
+            from collections import defaultdict, OrderedDict
+            menu_pass: Dict[str, bool] = OrderedDict()
+            for row in result_rows:
+                mid = row.menu_id
+                if mid not in menu_pass:
+                    menu_pass[mid] = True
+                if row.status == 0:
+                    menu_pass[mid] = False
+
+            # 按 run_list 顺序（即 cases 顺序）对应 menu_id
+            menu_ids = list(menu_pass.keys())
+            for i, case in enumerate(cases):
+                if i < len(menu_ids):
+                    is_pass = menu_pass[menu_ids[i]]
+                else:
+                    is_pass = True  # 无结果时默认通过
+                new_status = 1 if is_pass else 2
+                if is_pass:
+                    pass_count += 1
+                else:
+                    fail_count += 1
+                await db.execute(
+                    update(ApiCaseModel)
+                    .where(ApiCaseModel.id == case.id, ApiCaseModel.enabled_flag == 1)
+                    .values(status=new_status, updated_by=user_id)
+                )
+            await db.commit()
+        except Exception:
+            pass
+
+        total_count = len(cases)
+        return {"result_id": str(result_id), "total": total_count, "pass": pass_count, "fail": fail_count}

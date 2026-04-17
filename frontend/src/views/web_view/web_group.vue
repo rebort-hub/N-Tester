@@ -1,73 +1,76 @@
 <template>
-  <div style="padding: 10px">
-    <el-card class="box-card">
-      <div class="script-topbar">
-        <div class="script-topbar-left">
-          <span class="script-title">Web 自动化 - 场景管理</span>
+  <div class="web-group-page">
+    <!-- 顶部工具栏 -->
+    <div class="group-toolbar">
+      <div class="toolbar-left">
+        <el-input v-model="searchParams.search.name__icontains" placeholder="搜索场景名称" clearable style="width:200px" @keyup.enter="group_list" />
+        <el-button type="primary" icon="Search" @click="group_list">搜索</el-button>
+        <el-button icon="Refresh" @click="reset_search">重置</el-button>
+      </div>
+      <div class="toolbar-right">
+        <el-button type="primary" @click="Add">新增测试场景</el-button>
+      </div>
+    </div>
+
+    <!-- 主体：左侧模块树 + 右侧场景列表 -->
+    <div class="group-body">
+      <!-- 左侧模块树 -->
+      <div class="module-panel">
+        <div class="module-panel-header">
+          <span class="module-panel-title">脚本模块</span>
         </div>
-        <div class="script-topbar-right">
-          <el-input
-            v-model="searchParams.search.name__icontains"
-            placeholder="模糊搜索"
-            clearable
-            style="width: 300px; margin-right: 10px"
-            @keyup.enter="group_list"
-          >
-            <template #append>
-              <el-button @click="group_list">搜索</el-button>
+        <el-tree
+          :data="menuTree"
+          :props="{ label: 'name', children: 'children' }"
+          node-key="id"
+          highlight-current
+          class="module-tree"
+          @node-click="onMenuNodeClick"
+        >
+          <template #default="{ data }">
+            <span class="module-node">
+              <el-icon v-if="data.type===0" style="color:#409eff;margin-right:4px"><HomeFilled /></el-icon>
+              <el-icon v-else-if="data.type===1" style="color:#f39c12;margin-right:4px"><Folder /></el-icon>
+              <el-icon v-else style="color:#67c23a;margin-right:4px"><ChromeFilled /></el-icon>
+              <span class="module-node-name">{{ data.name }}</span>
+            </span>
+          </template>
+        </el-tree>
+      </div>
+
+      <!-- 右侧场景列表 -->
+      <div class="scene-panel">
+        <el-table :data="filteredTableData" border stripe empty-text="暂无场景" style="width:100%">
+          <el-table-column prop="id" label="ID" width="70" align="center" />
+          <el-table-column prop="name" label="场景名称" min-width="160" show-overflow-tooltip />
+          <el-table-column prop="description" label="描述" min-width="160" show-overflow-tooltip>
+            <template #default="{ row }">{{ row.description || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="脚本数" width="80" align="center">
+            <template #default="{ row }">
+              <el-badge :value="row.script?.length || 0" type="primary" />
             </template>
-          </el-input>
-          <el-button type="danger" @click="reset_search">重置</el-button>
-          <el-button type="primary" @click="Add">新增测试场景</el-button>
+          </el-table-column>
+          <el-table-column prop="username" label="更新人" width="90" align="center" show-overflow-tooltip />
+          <el-table-column label="创建时间" width="160" align="center">
+            <template #default="{ row }">{{ row.create_time ? String(row.create_time).replace('T',' ').slice(0,19) : '-' }}</template>
+          </el-table-column>
+          <el-table-column label="操作" width="200" align="center" fixed="right">
+            <template #default="{ row }">
+              <span style="white-space:nowrap;display:inline-flex;gap:4px">
+                <el-button type="success" size="small" @click="run_script(row)">运行</el-button>
+                <el-button type="warning" size="small" @click="Edit(row)">编辑</el-button>
+                <el-button type="danger" size="small" @click="Delete(row)">删除</el-button>
+              </span>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <div style="margin-top:12px">
+          <el-pagination v-show="total > 0" background v-model:current-page="searchParams.currentPage" v-model:page-size="searchParams.pageSize" :page-sizes="[10,20,50]" layout="total, sizes, prev, pager, next, jumper" :total="total" @size-change="group_list" @current-change="group_list" />
         </div>
       </div>
-    </el-card>
-
-    <el-card class="box-card mt-10px">
-      <el-table :data="table_data" stripe>
-        <el-table-column prop="id" label="ID" width="90" />
-        <el-table-column prop="name" label="名称" />
-        <el-table-column label="用例集">
-          <template #default="{ row }">
-            <el-popover placement="top" :width="300" trigger="hover">
-              <div>
-                <el-steps direction="vertical" :active="99">
-                  <el-step v-for="step in row.script" :key="step.id" :title="step.name" />
-                </el-steps>
-              </div>
-              <template #reference>
-                <el-button type="primary" link>用例详情</el-button>
-              </template>
-            </el-popover>
-          </template>
-        </el-table-column>
-        <el-table-column prop="description" label="描述" :show-overflow-tooltip="true" />
-        <el-table-column prop="username" label="最后更新人" />
-        <el-table-column prop="create_time" label="创建时间" :formatter="dateFormatYMDHMS" />
-        <el-table-column prop="update_time" label="更新时间" :formatter="dateFormatYMDHMS" />
-        <el-table-column label="操作" width="280">
-          <template #default="{ row }">
-            <el-button type="success" size="small" @click="run_script(row)">立即运行</el-button>
-            <el-button type="warning" size="small" @click="Edit(row)">编辑</el-button>
-            <el-button type="danger" size="small" @click="Delete(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <div class="pagination-wrapper">
-        <el-pagination
-          v-model:current-page="searchParams.currentPage"
-          v-model:page-size="searchParams.pageSize"
-          v-show="total > 0"
-          :page-sizes="[10, 20, 50]"
-          :background="true"
-          layout="total, sizes, prev, pager, next, jumper"
-          :total="total"
-          @size-change="group_list"
-          @current-change="group_list"
-        />
-      </div>
-    </el-card>
+    </div>
 
       <!-- 新增场景 -->
       <KoiDialog
@@ -435,9 +438,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { DocumentCopy, Monitor } from '@element-plus/icons-vue'
+import { DocumentCopy, Monitor, HomeFilled, Folder, ChromeFilled } from '@element-plus/icons-vue'
 import KoiDialog from '/@/components/koi/KoiDialog.vue'
 import { logLineClass, parseLogLineForDisplay } from '@/utils/runMonitorLog'
 import { useWebManagementApi } from '/@/api/v1/web_management'
@@ -469,6 +472,30 @@ const searchParams = ref({
 
 const table_data = ref<any[]>([])
 const total = ref(0)
+
+// ---- 左侧模块树 ----
+const menuTree = ref<any[]>([])
+const selectedMenuNode = ref<any>(null)
+
+const loadMenuTree = async () => {
+  try {
+    const res: any = await web_menu({})
+    menuTree.value = Array.isArray(res?.data) ? res.data : []
+  } catch { menuTree.value = [] }
+}
+
+const onMenuNodeClick = (data: any) => {
+  selectedMenuNode.value = data
+}
+
+// 根据选中节点过滤场景（场景的 script 里包含该节点 id 的）
+const filteredTableData = computed(() => {
+  if (!selectedMenuNode.value) return table_data.value
+  const nodeId = selectedMenuNode.value.id
+  return table_data.value.filter((row: any) =>
+    (row.script || []).some((s: any) => s.id === nodeId || s.pid === nodeId || s.menu_id === nodeId)
+  )
+})
 
 const reset_search = () => {
   searchParams.value = {
@@ -743,6 +770,7 @@ const copyWebResultLog = async () => {
 
 onMounted(() => {
   group_list()
+  loadMenuTree()
   try {
     const raw = window.localStorage.getItem('user')
     if (raw) user.value = JSON.parse(raw)
@@ -753,58 +781,18 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
-.box-card {
-  margin-bottom: 10px;
-}
-
-.mt-10px {
-  margin-top: 10px;
-}
-
-.script-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.script-topbar-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.script-topbar-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.script-title {
-  font-size: 16px;
-  font-weight: bold;
-  color: var(--el-text-color-primary);
-}
-
-.pagination-wrapper {
-  margin-top: 20px;
-  display: flex;
-  justify-content: center;
-}
-
-.custom-tree-node {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 14px;
-  padding-right: 2px;
-}
-
-.el-tree-node__content {
-  margin-bottom: 5px;
-  height: 28px;
-}
-
+.web-group-page { height: calc(100vh - 120px); display: flex; flex-direction: column; padding: 10px; gap: 8px; overflow: hidden; }
+.group-toolbar { display: flex; align-items: center; justify-content: space-between; background: var(--el-bg-color); border: 1px solid var(--el-border-color); border-radius: 8px; padding: 10px 14px; flex-shrink: 0; }
+.toolbar-left { display: flex; align-items: center; gap: 8px; }
+.toolbar-right { display: flex; align-items: center; gap: 8px; }
+.group-body { flex: 1; min-height: 0; display: flex; gap: 8px; overflow: hidden; }
+.module-panel { width: 220px; flex-shrink: 0; background: var(--el-bg-color); border: 1px solid var(--el-border-color); border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; }
+.module-panel-header { padding: 10px 14px; border-bottom: 1px solid var(--el-border-color); flex-shrink: 0; }
+.module-panel-title { font-size: 13px; font-weight: 600; color: var(--el-text-color-primary); }
+.module-tree { flex: 1; overflow-y: auto; padding: 4px 0; }
+.module-node { display: flex; align-items: center; min-width: 0; }
+.module-node-name { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scene-panel { flex: 1; min-width: 0; background: var(--el-bg-color); border: 1px solid var(--el-border-color); border-radius: 8px; padding: 12px; overflow: auto; }
 </style>
 
 <style lang="scss">

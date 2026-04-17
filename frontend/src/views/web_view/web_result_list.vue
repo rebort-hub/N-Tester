@@ -34,19 +34,6 @@
         <el-table-column type="index" label="序号" width="60" align="center" />
         <el-table-column label="任务名称" prop="task_name" min-width="120" show-overflow-tooltip />
 
-        <el-table-column label="测试用例" width="100" align="center">
-          <template #default="{ row }">
-            <el-popover placement="top" :width="280" trigger="hover">
-              <el-steps direction="vertical" :active="99" style="max-height: 300px; overflow-y: auto">
-                <el-step v-for="step in row.script_list" :key="step.id" :title="step.name" />
-              </el-steps>
-              <template #reference>
-                <el-button type="primary" size="small" plain>用例详情</el-button>
-              </template>
-            </el-popover>
-          </template>
-        </el-table-column>
-
         <el-table-column label="执行浏览器" width="110" align="center">
           <template #default="{ row }">
             <el-popover placement="top" trigger="hover" :width="180">
@@ -85,9 +72,11 @@
           <template #default="{ row }">{{ formatTime(row.end_time) }}</template>
         </el-table-column>
 
-        <el-table-column label="操作" width="280" align="center" fixed="right">
+        <el-table-column label="操作" width="320" align="center" fixed="right">
           <template #default="{ row }">
             <span class="action-cell">
+              <el-button type="success" size="small" @click="viewDetail(row)">详情</el-button>
+
               <el-button
                 v-if="statusMeta(row.status).isRunning"
                 type="danger"
@@ -117,11 +106,7 @@
                 title="执行中请先停止"
               >重跑</el-button>
 
-              <el-button
-                type="danger"
-                size="small"
-                @click="del_run(row)"
-              >删除</el-button>
+              <el-button type="danger" size="small" @click="del_run(row)">删除</el-button>
             </span>
           </template>
         </el-table-column>
@@ -141,12 +126,58 @@
         />
       </div>
     </el-card>
+
+    <!-- 用例详情抽屉 -->
+    <el-drawer v-model="detailDrawerVisible" title="执行详情" direction="rtl" size="480px" destroy-on-close :show-close="false">
+      <template #header="{ close }">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;width:100%">
+          <div>
+            <div style="font-size:15px;font-weight:600;color:var(--el-text-color-primary);margin-bottom:4px">{{ detailRow?.task_name }}</div>
+            <div style="font-size:12px;color:var(--el-text-color-placeholder)">{{ formatTime(detailRow?.start_time) }}</div>
+          </div>
+          <el-icon style="font-size:20px;color:var(--el-text-color-placeholder);cursor:pointer;margin-left:12px" @click="close"><Close /></el-icon>
+        </div>
+      </template>
+
+      <!-- 汇总 -->
+      <div class="detail-summary-cards">
+        <div class="summary-card"><div class="sc-val">{{ detailRow?.total ?? (detailRow?.script_list?.length ?? 0) }}</div><div class="sc-label">总脚本</div></div>
+        <div class="summary-card pass-card"><div class="sc-val">{{ (detailRow?.total ?? 0) - (detailRow?.total_fail ?? 0) }}</div><div class="sc-label">通过</div></div>
+        <div class="summary-card fail-card"><div class="sc-val">{{ detailRow?.total_fail ?? 0 }}</div><div class="sc-label">失败</div></div>
+        <div class="summary-card rate-card"><div class="sc-val">{{ detailRow?.percent ?? 0 }}%</div><div class="sc-label">通过率</div></div>
+      </div>
+
+      <div style="margin-bottom:16px">
+        <el-progress :percentage="Number(detailRow?.percent ?? 0)" :color="[{color:'#ff4d4f',percentage:99.99},{color:'#52c41a',percentage:100}]" :stroke-width="8" :show-text="false" />
+      </div>
+
+      <!-- 浏览器 -->
+      <div style="margin-bottom:16px">
+        <div style="font-size:13px;font-weight:600;color:var(--el-text-color-primary);margin-bottom:8px;padding-left:8px;border-left:3px solid #409eff">执行浏览器</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <el-tag v-for="b in (detailRow?.browser_list||[])" :key="b" :type="b===1?'danger':b===2?'warning':b===3?'primary':'success'" size="small">
+            {{ b===1?'Chrome':b===2?'Firefox':b===3?'Edge':'Safari' }}
+          </el-tag>
+        </div>
+      </div>
+
+      <!-- 脚本列表 -->
+      <div style="font-size:13px;font-weight:600;color:var(--el-text-color-primary);margin-bottom:12px;padding-left:8px;border-left:3px solid #409eff">脚本明细</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div v-for="(s,i) in (detailRow?.script_list||[])" :key="i" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--el-fill-color-light);border-radius:6px;border:1px solid var(--el-border-color-lighter)">
+          <span style="width:22px;height:22px;border-radius:50%;background:var(--el-color-primary-light-9);color:#409eff;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0">{{ i+1 }}</span>
+          <span style="font-size:13px;color:var(--el-text-color-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">{{ s.name || s }}</span>
+        </div>
+        <div v-if="!detailRow?.script_list?.length" style="text-align:center;color:var(--el-text-color-placeholder);padding:30px 0;font-size:13px">暂无脚本明细</div>
+      </div>
+    </el-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Close } from '@element-plus/icons-vue'
 import { useWebManagementApi } from '/@/api/v1/web_management'
 import { getExecutionStatusMeta } from '/@/utils/executionStatus'
 
@@ -171,6 +202,10 @@ const total = ref(0)
 
 const formatTime = (t: string) => t ? t.replace('T', ' ') : '-'
 const statusMeta = (status: number) => getExecutionStatusMeta(status)
+
+const detailDrawerVisible = ref(false)
+const detailRow = ref<any>(null)
+const viewDetail = (row: any) => { detailRow.value = row; detailDrawerVisible.value = true }
 
 const result_list = async () => {
   loading.value = true
@@ -250,12 +285,16 @@ onMounted(() => { result_list() })
 </script>
 
 <style scoped lang="scss">
-.result-list-container {
-  padding: 10px;
-}
-
-.action-cell {
-  white-space: nowrap;
-}
-
+.result-list-container { padding: 10px; }
+.action-cell { white-space: nowrap; }
+.detail-summary-cards { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 16px; }
+.summary-card { background: linear-gradient(135deg,var(--el-fill-color-light),var(--el-bg-color)); border: 1px solid var(--el-border-color-lighter); border-radius: 10px; padding: 14px 10px; text-align: center; }
+.sc-val { font-size: 24px; font-weight: 700; color: var(--el-text-color-primary); margin-bottom: 4px; }
+.sc-label { font-size: 12px; color: var(--el-text-color-placeholder); }
+.pass-card { background: linear-gradient(135deg,#f6ffed,#d9f7be); border-color: #b7eb8f; }
+.pass-card .sc-val { color: #52c41a; }
+.fail-card { background: linear-gradient(135deg,#fff1f0,#ffccc7); border-color: #ffa39e; }
+.fail-card .sc-val { color: #ff4d4f; }
+.rate-card { background: linear-gradient(135deg,#f9f0ff,#efdbff); border-color: #d3adf7; }
+.rate-card .sc-val { color: #722ed1; }
 </style>
