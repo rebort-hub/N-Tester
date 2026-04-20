@@ -1,54 +1,76 @@
-<template>
+﻿<template>
   <div class="web-group-page">
     <!-- 顶部工具栏 -->
     <div class="group-toolbar">
       <div class="toolbar-left">
-        <el-input v-model="searchParams.search.name__icontains" placeholder="搜索场景名称" clearable style="width:200px" @keyup.enter="group_list" />
+        <el-input v-model="searchParams.search.name__icontains" placeholder="搜索脚本名称" clearable style="width:200px" @keyup.enter="group_list" />
         <el-button type="primary" icon="Search" @click="group_list">搜索</el-button>
         <el-button icon="Refresh" @click="reset_search">重置</el-button>
       </div>
       <div class="toolbar-right">
-        <el-button type="primary" @click="Add">新增测试场景</el-button>
+        <el-button type="primary" @click="Add">新增脚本</el-button>
       </div>
     </div>
 
-    <!-- 主体：左侧模块树 + 右侧场景列表 -->
+    <!-- 主体：左侧模块树 + 右侧脚本列表 -->
     <div class="group-body">
       <!-- 左侧模块树 -->
       <div class="module-panel">
         <div class="module-panel-header">
           <span class="module-panel-title">脚本模块</span>
+          <span class="module-panel-all" :class="{'module-panel-all--active': !selectedMenuNode}" @click="selectedMenuNode=null">全部</span>
         </div>
-        <el-tree
-          :data="menuTree"
-          :props="{ label: 'name', children: 'children' }"
-          node-key="id"
-          highlight-current
-          class="module-tree"
-          @node-click="onMenuNodeClick"
-        >
-          <template #default="{ data }">
-            <span class="module-node">
-              <el-icon v-if="data.type===0" style="color:#409eff;margin-right:4px"><HomeFilled /></el-icon>
-              <el-icon v-else-if="data.type===1" style="color:#f39c12;margin-right:4px"><Folder /></el-icon>
-              <el-icon v-else style="color:#67c23a;margin-right:4px"><ChromeFilled /></el-icon>
-              <span class="module-node-name">{{ data.name }}</span>
-            </span>
+        <div class="module-list">
+          <template v-for="node in menuTree" :key="node.id">
+            <div
+              class="mnode"
+              :class="{'mnode--active': selectedMenuNode && selectedMenuNode.id === node.id}"
+              @click="selectedMenuNode = node"
+            >
+              <i class="mnode-icon micon-home"></i>
+              <span class="mnode-name">{{ node.name }}</span>
+            </div>
+            <template v-if="node.children && node.children.length">
+              <template v-for="child in node.children" :key="child.id">
+                <div
+                  class="mnode mnode--child"
+                  :class="{'mnode--active': selectedMenuNode && selectedMenuNode.id === child.id}"
+                  @click="selectedMenuNode = child"
+                >
+                  <i class="mnode-icon micon-folder"></i>
+                  <span class="mnode-name">{{ child.name }}</span>
+                </div>
+                <template v-if="child.children && child.children.length">
+                  <div
+                    v-for="leaf in child.children"
+                    :key="leaf.id"
+                    class="mnode mnode--leaf"
+                    :class="{'mnode--active': selectedMenuNode && selectedMenuNode.id === leaf.id}"
+                    @click="selectedMenuNode = leaf"
+                  >
+                    <i class="mnode-icon micon-script"></i>
+                    <span class="mnode-name">{{ leaf.name }}</span>
+                  </div>
+                </template>
+              </template>
+            </template>
           </template>
-        </el-tree>
+        </div>
       </div>
 
-      <!-- 右侧场景列表 -->
+      <!-- 右侧列表 -->
       <div class="scene-panel">
-        <el-table :data="filteredTableData" border stripe empty-text="暂无场景" style="width:100%">
+        <el-table :data="filteredTableData" border stripe empty-text="暂无脚本" style="width:100%">
           <el-table-column prop="id" label="ID" width="70" align="center" />
-          <el-table-column prop="name" label="场景名称" min-width="160" show-overflow-tooltip />
+          <el-table-column prop="name" label="脚本名称" min-width="160" show-overflow-tooltip />
           <el-table-column prop="description" label="描述" min-width="160" show-overflow-tooltip>
             <template #default="{ row }">{{ row.description || '-' }}</template>
           </el-table-column>
           <el-table-column label="脚本数" width="80" align="center">
             <template #default="{ row }">
-              <el-badge :value="row.script?.length || 0" type="primary" />
+              <span style="display:inline-block;min-width:20px;height:20px;line-height:20px;text-align:center;background:#409eff;color:#fff;border-radius:10px;font-size:11px;padding:0 6px">
+                {{ (row.script || []).filter(Boolean).length }}
+              </span>
             </template>
           </el-table-column>
           <el-table-column prop="username" label="更新人" width="90" align="center" show-overflow-tooltip />
@@ -72,229 +94,129 @@
       </div>
     </div>
 
-      <!-- 新增场景 -->
-      <KoiDialog
-        ref="add_koiDialogRef"
+      <!-- 新增/编辑脚本弹窗 -->
+      <el-dialog
+        v-model="scriptDialogVisible"
         :title="title"
-        :height="620"
-        @koi-confirm="add_confirm"
-        @koi-cancel="add_cancel"
+        width="860px"
+        @close="resetScriptForm"
       >
-        <template #content>
-          <el-form :model="add_form" label-width="80px">
-            <el-form-item label="名称：">
-              <el-input v-model="add_form.name" placeholder="请输入名称" clearable />
-            </el-form-item>
-            <el-form-item label="用例集：">
-              <el-cascader
-                v-model="web_list"
-                placeholder="请选择脚本"
-                style="width: 400px; padding-right: 10px"
-                :options="element_select_list"
-                filterable
-                collapse-tags
-                :props="{
-                  value: 'id',
-                  label: 'name',
-                  children: 'children',
-                  multiple: true
-                }"
-              >
-                <template #default="{ node, data }">
-                  <el-icon v-if="data.type === 0" style="padding-right: 5px">
-                    <HomeFilled />
-                  </el-icon>
-                  <el-icon v-else-if="data.type === 1" style="padding-right: 5px">
-                    <Folder />
-                  </el-icon>
-                  <el-icon v-else-if="data.type === 2" style="padding-right: 5px">
-                    <ChromeFilled />
-                  </el-icon>
-                  <span>{{ data.name }}</span>
-                  <span v-if="!node.isLeaf">({{ data.children.length }})</span>
-                </template>
-              </el-cascader>
-              <el-button type="primary" icon="plus" plain @click="add_web">确认添加</el-button>
-            </el-form-item>
-            <el-form-item>
-              <div
-                style="border: 1px solid #e4e7ed; width: 400px; height: 400px; overflow-y: auto; padding: 10px"
-              >
-                <el-tree
-                  ref="treeRef"
-                  :data="add_form.script"
-                  :props="defaultProps"
-                  default-expand-all
-                  :allow-drop="on_menu_allowDrop"
-                  draggable
+        <div class="script-dialog-body">
+          <!-- 左侧：脚本树选择 -->
+          <div class="script-picker">
+            <div class="picker-header">
+              <span class="picker-title">选择脚本</span>
+              <el-input v-model="pickerKeyword" placeholder="搜索脚本" clearable size="small" style="flex:1;margin-left:8px" />
+            </div>
+            <div class="module-list picker-list">
+              <template v-for="node in pickerTreeData" :key="node.id">
+                <!-- 顶层是脚本节点，直接可点击 -->
+                <div
+                  v-if="node.type===2"
+                  class="mnode mnode--clickable"
+                  :class="{'mnode--added': addedScriptIds.has(Number(node.id))}"
+                  style="padding-left:8px"
+                  @click="onPickerNodeClick(node)"
                 >
-                  <template #default="{ node, data }">
-                    <span class="custom-tree-node" style="width: 100%">
-                      <div
-                        style="border: 1px solid #3e7be5; border-radius: 5px; width: 93%; color: #3e7be5"
-                      >
-                        <span>
-                          <el-icon style="padding-right: 3px; padding-left: 5px">
-                            <ChromeFilled />
-                          </el-icon>
-                          {{ node.label }}
-                          <el-button
-                            type="text"
-                            style="float: right"
-                            plain
-                            icon="Delete"
-                            @click="del_web(data)"
-                          />
-                        </span>
-                      </div>
-                    </span>
-                  </template>
-                </el-tree>
-              </div>
-            </el-form-item>
-            <el-form-item label="描述：">
-              <el-input v-model="add_form.description" placeholder="请输入描述" />
-            </el-form-item>
-          </el-form>
-        </template>
-      </KoiDialog>
-
-      <!-- 编辑场景 -->
-      <KoiDialog
-        ref="edit_koiDialogRef"
-        :title="title"
-        :height="620"
-        @koi-confirm="edit_confirm"
-        @koi-cancel="edit_cancel"
-      >
-        <template #content>
-          <el-form :model="add_form" label-width="80px">
-            <el-form-item label="名称：">
-              <el-input v-model="add_form.name" placeholder="请输入名称" clearable />
-            </el-form-item>
-            <el-form-item label="用例集：">
-              <el-cascader
-                v-model="web_list"
-                placeholder="请选择脚本"
-                style="width: 400px; padding-right: 10px"
-                :options="element_select_list"
-                filterable
-                collapse-tags
-                :props="{
-                  value: 'id',
-                  label: 'name',
-                  children: 'children',
-                  multiple: true
-                }"
-              >
-                <template #default="{ node, data }">
-                  <el-icon v-if="data.type === 0" style="padding-right: 5px">
-                    <HomeFilled />
-                  </el-icon>
-                  <el-icon v-else-if="data.type === 1" style="padding-right: 5px">
-                    <Folder />
-                  </el-icon>
-                  <el-icon v-else-if="data.type === 2" style="padding-right: 5px">
-                    <ChromeFilled />
-                  </el-icon>
-                  <span>{{ data.name }}</span>
-                  <span v-if="!node.isLeaf">({{ data.children.length }})</span>
+                  <i class="mnode-icon micon-script"></i>
+                  <span class="mnode-name">{{ node.name }}</span>
+                  <span v-if="addedScriptIds.has(Number(node.id))" class="picker-badge picker-badge--added">✓ 已添加</span>
+                  <span v-else class="picker-badge picker-badge--add">+ 添加</span>
+                </div>
+                <!-- 顶层是分组/目录节点 -->
+                <template v-else>
+                  <div class="mnode" style="padding-left:8px">
+                    <i class="mnode-icon" :class="node.type===0?'micon-home':'micon-folder'"></i>
+                    <span class="mnode-name">{{ node.name }}</span>
+                  </div>
+                  <div
+                    v-for="leaf in node._flatChildren"
+                    :key="leaf.id"
+                    class="mnode mnode--clickable"
+                    :class="{'mnode--added': addedScriptIds.has(Number(leaf.id))}"
+                    :style="'padding-left:' + (8 + leaf._depth * 14) + 'px'"
+                    @click="onPickerNodeClick(leaf)"
+                  >
+                    <i class="mnode-icon micon-script"></i>
+                    <span class="mnode-name">{{ leaf.name }}</span>
+                    <span v-if="addedScriptIds.has(Number(leaf.id))" class="picker-badge picker-badge--added">✓ 已添加</span>
+                    <span v-else class="picker-badge picker-badge--add">+ 添加</span>
+                  </div>
                 </template>
-              </el-cascader>
-              <el-button type="primary" icon="plus" plain @click="add_web">确认添加</el-button>
-            </el-form-item>
-            <el-form-item>
+              </template>
+            </div>
+          </div>
+
+          <!-- 右侧：已选脚本 + 基本信息 -->
+          <div class="script-config">
+            <el-form :model="add_form" label-width="70px">
+              <el-form-item label="脚本名称" required>
+                <el-input v-model="add_form.name" placeholder="请输入脚本名称" />
+              </el-form-item>
+              <el-form-item label="描述">
+                <el-input v-model="add_form.description" placeholder="可选" type="textarea" :rows="2" />
+              </el-form-item>
+            </el-form>
+
+            <div class="selected-header">
+              <span class="selected-title">已选脚本 ({{ add_form.script?.length || 0 }})</span>
+              <el-button link size="small" type="danger" @click="add_form.script=[]">清空</el-button>
+            </div>
+            <div class="selected-list">
+              <div v-if="!add_form.script?.length" class="selected-empty">
+                <span style="font-size:28px;color:#dcdfe6"></span>
+                <p>从左侧点击脚本添加</p>
+              </div>
               <div
-                style="border: 1px solid #e4e7ed; width: 400px; height: 400px; overflow-y: auto; padding: 10px"
+                v-for="(s, i) in (add_form.script || [])"
+                :key="String(s.id ?? i) + '_' + i"
+                class="selected-item"
               >
-                <el-tree
-                  ref="treeRef"
-                  :data="add_form.script"
-                  :props="defaultProps"
-                  default-expand-all
-                  :allow-drop="on_menu_allowDrop"
-                  draggable
-                >
-                  <template #default="{ node, data }">
-                    <span class="custom-tree-node" style="width: 100%">
-                      <div
-                        style="border: 1px solid #3e7be5; border-radius: 5px; width: 93%; color: #3e7be5"
-                      >
-                        <span>
-                          <el-icon style="padding-right: 3px; padding-left: 5px">
-                            <ChromeFilled />
-                          </el-icon>
-                          {{ node.label }}
-                          <el-button
-                            type="text"
-                            style="float: right"
-                            plain
-                            icon="Delete"
-                            @click="del_web(data)"
-                          />
-                        </span>
-                      </div>
-                    </span>
-                  </template>
-                </el-tree>
+                <span class="selected-index">{{ i + 1 }}</span>
+                <span style="color:#67c23a;flex-shrink:0;font-size:13px">●</span>
+                <span class="selected-name">{{ s.name }}</span>
+                <span class="selected-del" @click.stop="del_web(s)" style="cursor:pointer;color:#c0c4cc;font-size:18px;line-height:1;flex-shrink:0">×</span>
               </div>
-            </el-form-item>
-            <el-form-item label="描述：">
-              <el-input v-model="add_form.description" placeholder="请输入描述" />
-            </el-form-item>
-          </el-form>
-        </template>
-      </KoiDialog>
+            </div>
+          </div>
+        </div>
 
-      <KoiDialog
-        ref="run_koiDialogRef"
-        :title="title"
-        :height="220"
-        @koi-confirm="run_script_confirm"
-        @koi-cancel="run_script_cancel"
-      >
-        <template #content>
-          <el-form>
-            <el-form-item label="名称：">
-              <el-input v-model="run_script_form.task_name" placeholder="请输入名称" clearable />
-            </el-form-item>
-            <el-form-item label="执行模式：">
-              <el-radio-group v-model="run_script_form.browser_type">
-                <el-radio :value="1">有界面</el-radio>
-                <el-radio :value="2">无界面</el-radio>
-              </el-radio-group>
-            </el-form-item>
-            <el-form-item label="分辨率(宽*高)：">
-              <div>
-                <el-input-number
-                  v-model="run_script_form.width"
-                  controls-position="right"
-                  min="800"
-                  label="宽度"
-                />
-                <el-input-number
-                  v-model="run_script_form.height"
-                  style="padding-left: 10px"
-                  controls-position="right"
-                  min="800"
-                  label="高度"
-                />
-              </div>
-            </el-form-item>
-            <el-form-item label="选择浏览器：">
-              <el-select v-model="run_script_form.browser" multiple style="width: 60%">
-                <el-option
-                  v-for="item in browser_list"
-                  :key="item.value"
-                  :label="item.name"
-                  :value="item.value"
-                />
-              </el-select>
-            </el-form-item>
-          </el-form>
+        <template #footer>
+          <el-button @click="scriptDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="submitScriptForm">保存</el-button>
         </template>
-      </KoiDialog>
+      </el-dialog>
 
+      <!-- 运行配置弹窗 -->
+      <el-dialog v-model="runDialogVisible" title="运行配置" width="420px" destroy-on-close>
+        <el-form :model="run_script_form" label-width="90px">
+          <el-form-item label="任务名称" required>
+            <el-input v-model="run_script_form.task_name" placeholder="请输入任务名称" />
+          </el-form-item>
+          <el-form-item label="执行模式">
+            <el-radio-group v-model="run_script_form.browser_type">
+              <el-radio :value="1">有界面</el-radio>
+              <el-radio :value="2">无界面</el-radio>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item label="分辨率">
+            <div style="display:flex;align-items:center;gap:8px">
+              <el-input-number v-model="run_script_form.width" controls-position="right" :min="800" style="width:130px" />
+              <span style="color:#909399">×</span>
+              <el-input-number v-model="run_script_form.height" controls-position="right" :min="600" style="width:130px" />
+            </div>
+          </el-form-item>
+          <el-form-item label="浏览器">
+            <el-select v-model="run_script_form.browser" multiple style="width:100%">
+              <el-option v-for="item in browser_list" :key="item.value" :label="item.name" :value="item.value" />
+            </el-select>
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button @click="runDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="run_script_confirm">确认运行</el-button>
+        </template>
+      </el-dialog>
 
       <el-drawer
         v-model="runMonitorDrawerVisible"
@@ -313,7 +235,7 @@
               <span class="wa-run-monitor-drawer-title">{{ title }}</span>
               <el-tag type="info" effect="plain" size="small" class="wa-run-monitor-drawer-badge">执行监控</el-tag>
             </div>
-            <p class="wa-run-monitor-drawer-sub">场景步骤与日志，执行结束后可继续查看或关闭抽屉</p>
+            <p class="wa-run-monitor-drawer-sub">步骤与日志，执行结束后可继续查看或关闭抽屉</p>
           </div>
         </template>
         <div class="wa-run-monitor-shell">
@@ -399,7 +321,7 @@
                         <div class="wa-run-monitor-log-toolbar">
                           <span class="wa-run-monitor-log-toolbar-title">
                             <el-icon class="wa-run-monitor-log-toolbar-icon"><Monitor /></el-icon>
-                            场景执行日志
+                            执行日志
                           </span>
                           <el-button size="small" class="wa-run-monitor-btn-ghost" @click="copyWebResultLog">
                             <el-icon class="el-icon--left"><DocumentCopy /></el-icon>
@@ -438,10 +360,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
-import { DocumentCopy, Monitor, HomeFilled, Folder, ChromeFilled } from '@element-plus/icons-vue'
-import KoiDialog from '/@/components/koi/KoiDialog.vue'
+import { DocumentCopy, Monitor, HomeFilled, Folder, ChromeFilled, Delete, Check, Close } from '@element-plus/icons-vue'
 import { logLineClass, parseLogLineForDisplay } from '@/utils/runMonitorLog'
 import { useWebManagementApi } from '/@/api/v1/web_management'
 import commonFunction from '/@/utils/commonFunction'
@@ -480,20 +401,22 @@ const selectedMenuNode = ref<any>(null)
 const loadMenuTree = async () => {
   try {
     const res: any = await web_menu({})
-    menuTree.value = Array.isArray(res?.data) ? res.data : []
+    menuTree.value = ensureId(Array.isArray(res?.data) ? res.data : [])
   } catch { menuTree.value = [] }
 }
 
 const onMenuNodeClick = (data: any) => {
-  selectedMenuNode.value = data
+  nextTick(() => {
+    selectedMenuNode.value = data
+  })
 }
 
-// 根据选中节点过滤场景（场景的 script 里包含该节点 id 的）
+// 根据选中节点过滤场景
 const filteredTableData = computed(() => {
-  if (!selectedMenuNode.value) return table_data.value
-  const nodeId = selectedMenuNode.value.id
+  if (!selectedMenuNode.value || selectedMenuNode.value.id == null) return table_data.value
+  const nodeId = Number(selectedMenuNode.value.id)
   return table_data.value.filter((row: any) =>
-    (row.script || []).some((s: any) => s.id === nodeId || s.pid === nodeId || s.menu_id === nodeId)
+    (row.script || []).some((s: any) => s != null && Number(s.id) === nodeId)
   )
 })
 
@@ -509,19 +432,38 @@ const reset_search = () => {
 }
 
 const group_list = async () => {
-
   const res: any = await web_group_list(searchParams.value)
   const content = res?.data?.content
-  table_data.value = Array.isArray(content) ? content : []
+  // 清洗数据，确保 script 数组里没有 null/undefined 元素
+  table_data.value = (Array.isArray(content) ? content : []).map((row: any) => ({
+    ...row,
+    script: (row.script || []).filter(Boolean),
+  }))
   total.value = typeof res?.data?.total === 'number' ? res.data.total : table_data.value.length
 }
 
 const element_select_list = ref<any[]>([])
 const web_list = ref<any[]>([])
 
+// 确保每个节点都有唯一 id，只保留必要字段，避免响应式属性污染
+let _uid = 100000
+const ensureId = (nodes: any[]): any[] => {
+  return (nodes || []).map((n: any) => {
+    const node: any = {
+      id: n.id != null ? n.id : (_uid++),
+      name: n.name || '',
+      type: n.type,
+    }
+    if (n.children && n.children.length) {
+      node.children = ensureId(n.children)
+    }
+    return node
+  })
+}
+
 const element_select = async () => {
   const res: any = await web_menu({})
-  element_select_list.value = res.data
+  element_select_list.value = ensureId(Array.isArray(res?.data) ? res.data : [])
 }
 
 const add_web = async () => {
@@ -536,11 +478,108 @@ const add_web = async () => {
 }
 
 const del_web = (data: any) => {
-  add_form.value.script = (add_form.value.script || []).filter((item: any) => item.id !== data.id)
+  add_form.value.script = (add_form.value.script || []).filter(
+    (item: any) => (item.id != null ? item.id !== data.id : item.name !== data.name)
+  )
+  addedScriptIds.value = new Set((add_form.value.script || []).map((s: any) => Number(s.id)))
 }
 
-const add_koiDialogRef = ref<InstanceType<typeof KoiDialog> | null>(null)
-const edit_koiDialogRef = ref<InstanceType<typeof KoiDialog> | null>(null)
+// ---- 新增/编辑脚本弹窗 ----
+const scriptDialogVisible = ref(false)
+const pickerTreeRef = ref<any>(null)
+const pickerKeyword = ref('')
+const pickedNodes = ref<any[]>([])
+
+watch(pickerKeyword, (v) => pickerTreeRef.value?.filter(v))
+const filterPickerNode = (val: string, data: any) => !val || data.name?.includes(val)
+
+// pickerTreeData：静态，不依赖 add_form.script，避免 el-tree 重渲染触发多次 node-click
+const pickerTreeData = computed(() => {
+  // 递归提取：每个非脚本节点附带其下所有脚本节点（_flatChildren）
+  const flatScripts = (nodes: any[], depth = 1): any[] => {
+    const result: any[] = []
+    for (const n of nodes) {
+      if (n.type === 2) {
+        result.push({ ...n, _depth: depth })
+      } else if (n.children && n.children.length) {
+        result.push(...flatScripts(n.children, depth + 1))
+      }
+    }
+    return result
+  }
+  return element_select_list.value.map((n: any) => ({
+    id: n.id,
+    name: n.name,
+    type: n.type,
+    _depth: 0,
+    _flatChildren: n.type === 2
+      ? [] // 顶层就是脚本，直接在父级处理
+      : flatScripts(n.children || [], 1),
+    _isSelf: n.type === 2, // 顶层脚本节点
+  }))
+})
+
+// 用独立的 Set 追踪已添加的脚本 id，不触发 el-tree 重渲染
+const addedScriptIds = ref<Set<number>>(new Set())
+
+const onPickerNodeClick = (data: any) => {
+  if (data.type !== 2) return
+  const id = Number(data.id)
+  if (addedScriptIds.value.has(id)) return
+  addedScriptIds.value = new Set([...addedScriptIds.value, id])
+  add_form.value.script = [
+    ...(add_form.value.script || []),
+    { id: data.id, name: data.name, type: data.type },
+  ]
+}
+
+// 判断是否已添加（供 slot 使用，但 slot 里用 addedScriptIds 而不是 add_form.script）
+const isScriptAdded = (data: any) => addedScriptIds.value.has(Number(data.id))
+
+const onPickerCheckChange = (data: any, checked: boolean) => {
+  if (!checked) {
+    pickedNodes.value = pickedNodes.value.filter((n: any) => n.id !== data.id)
+    return
+  }
+  if (data.type === 2 && data.id != null && !pickedNodes.value.find((n: any) => n.id === data.id)) {
+    pickedNodes.value.push(data)
+  }
+}
+
+const addPickedScripts = () => {
+  const existing = new Set((add_form.value.script || []).map((s: any) => String(s.id ?? s.name)))
+  const toAdd = pickedNodes.value
+    .filter((n: any) => !existing.has(String(n.id ?? n.name)))
+    .map((n: any) => ({ id: n.id, name: n.name, type: n.type })) // 只保留必要字段，避免 children 等复杂嵌套
+  add_form.value.script = [...(add_form.value.script || []), ...toAdd]
+  pickedNodes.value = []
+  // nodes cleared via onPickerCheckChange
+}
+
+const resetScriptForm = () => {
+  add_form.value = { name: '', script: [], description: '' }
+  pickedNodes.value = []
+  pickerKeyword.value = ''
+  addedScriptIds.value = new Set()
+}
+
+const submitScriptForm = async () => {
+  if (!add_form.value.name?.trim()) { ElMessage.warning('请输入脚本名称'); return }
+  try {
+    if (add_form.value.id) {
+      const res: any = await edit_web_group(add_form.value)
+      ElMessage.success(res?.message || '修改成功')
+    } else {
+      const res: any = await add_web_group(add_form.value)
+      ElMessage.success(res?.message || '新增成功')
+    }
+    scriptDialogVisible.value = false
+    await group_list()
+  } catch (e: any) { ElMessage.error(e?.message || '操作失败') }
+}
+
+const add_koiDialogRef = ref<any>(null)
+const edit_koiDialogRef = ref<any>(null)
 
 const add_form = ref<any>({
   name: '',
@@ -557,48 +596,33 @@ const title = ref('')
 
 const Add = async () => {
   await element_select()
-  title.value = '新增测试场景'
-  add_form.value = {
-    name: '',
-    script: [],
-    description: '',
-  }
-  add_koiDialogRef.value?.koiOpen()
+  title.value = '新增脚本'
+  add_form.value = { name: '', script: [], description: '' }
+  addedScriptIds.value = new Set()
+  scriptDialogVisible.value = true
 }
 
-const add_confirm = async () => {
-  const res: any = await add_web_group(add_form.value)
-  await group_list()
-  add_koiDialogRef.value?.koiQuickClose(res.message)
-}
-
-const add_cancel = () => {
-  add_koiDialogRef.value?.koiClose()
-}
+const add_confirm = async () => {}
+const add_cancel = () => {}
 
 const on_menu_allowDrop = (_moveNode: any, inNode: any, type: any) => {
-  if (inNode.data.type === 2) {
-    return type !== 'inner'
-  }
+  if (inNode.data.type === 2) return type !== 'inner'
   return type
 }
 
 const Edit = async (row: any) => {
-  title.value = `编辑测试场景：${row.name}`
-  add_form.value = { ...row }
+  title.value = `编辑脚本：${row.name}`
+  const cleanScript = (row.script || []).filter(Boolean).map((s: any) => ({
+    id: s.id, name: s.name, type: s.type,
+  }))
+  add_form.value = { ...row, script: cleanScript }
+  addedScriptIds.value = new Set(cleanScript.map((s: any) => Number(s.id)))
   await element_select()
-  edit_koiDialogRef.value?.koiOpen()
+  scriptDialogVisible.value = true
 }
 
-const edit_confirm = async () => {
-  const res: any = await edit_web_group(add_form.value)
-  await group_list()
-  edit_koiDialogRef.value?.koiQuickClose(res.message)
-}
-
-const edit_cancel = () => {
-  edit_koiDialogRef.value?.koiClose()
-}
+const edit_confirm = async () => {}
+const edit_cancel = () => {}
 
 const Delete = async (row: any) => {
   try {
@@ -645,15 +669,17 @@ const run_fail = ref<number>(0)
 const start_time = ref<string>('')
 const end_time = ref<string>('')
 
+const runDialogVisible = ref(false)
+
 const run_script = (row: any) => {
-  title.value = '请配置调试信息'
+  title.value = `运行：${row.name}`
   run_script_form.value.script = row.script || []
   run_script_form.value.task_name = row.name || ''
   run_script_form.value.browser = [1]
-  run_koiDialogRef.value?.koiOpen()
+  runDialogVisible.value = true
 }
 
-const run_koiDialogRef = ref<InstanceType<typeof KoiDialog> | null>(null)
+const run_koiDialogRef = ref<any>(null)
 
 const run_script_confirm = async () => {
   if (!run_script_form.value.script.length) {
@@ -675,23 +701,19 @@ const run_script_confirm = async () => {
 
   run_script_form.value.browser.forEach((b: any) => {
     const found = browser_list.value.find((it) => it.value === b)
-    if (found) {
-      run_browsers.value.push(found)
-    }
+    if (found) run_browsers.value.push(found)
   })
 
   run_browser_active.value = run_script_form.value.browser[0]
   title.value = `正在执行：${run_script_form.value.task_name}`
-  run_koiDialogRef.value?.koiQuickClose('')
+  runDialogVisible.value = false
   runMonitorDrawerVisible.value = true
 
   await startPolling()
   await run_web_script(run_script_form.value)
 }
 
-const run_script_cancel = () => {
-  run_koiDialogRef.value?.koiQuickClose('取消调试')
-}
+const run_script_cancel = () => {}
 
 const interval = ref<any>(null)
 
@@ -750,7 +772,7 @@ const change_browser = async () => {
   await startPolling()
 }
 
-const getIcon = (status: any) => (status === 1 ? 'Check' : 'Close')
+const getIcon = (status: any) => (status === 1 ? Check : Close)
 const colors = (status: any) => (status === 1 ? '#0bbd87' : '#d70e0e')
 
 const copyWebResultLog = async () => {
@@ -787,12 +809,53 @@ onMounted(() => {
 .toolbar-right { display: flex; align-items: center; gap: 8px; }
 .group-body { flex: 1; min-height: 0; display: flex; gap: 8px; overflow: hidden; }
 .module-panel { width: 220px; flex-shrink: 0; background: var(--el-bg-color); border: 1px solid var(--el-border-color); border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; }
-.module-panel-header { padding: 10px 14px; border-bottom: 1px solid var(--el-border-color); flex-shrink: 0; }
+.module-panel-header { padding: 10px 14px; border-bottom: 1px solid var(--el-border-color); flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; }
 .module-panel-title { font-size: 13px; font-weight: 600; color: var(--el-text-color-primary); }
-.module-tree { flex: 1; overflow-y: auto; padding: 4px 0; }
-.module-node { display: flex; align-items: center; min-width: 0; }
-.module-node-name { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.module-panel-all { font-size: 12px; color: #409eff; cursor: pointer; padding: 2px 8px; border-radius: 10px; border: 1px solid #409eff; }
+.module-panel-all--active { background: #409eff; color: #fff; }
+.module-list { flex: 1; overflow-y: auto; padding: 4px 0; }
+.picker-list { border: 1px solid var(--el-border-color); border-radius: 6px; padding: 4px; }
+.mnode { display: flex; align-items: center; gap: 6px; padding: 6px 12px; cursor: pointer; border-radius: 4px; transition: background .15s; font-size: 12px; color: var(--el-text-color-primary); }
+.mnode:hover { background: var(--el-fill-color-light); }
+.mnode--active { background: var(--el-color-primary-light-9); color: #409eff; font-weight: 500; }
+.mnode--child { padding-left: 24px; }
+.mnode--leaf { padding-left: 36px; }
+.mnode--clickable { cursor: pointer; }
+.mnode--added { color: #67c23a; }
+.mnode-icon { font-style: normal; font-size: 11px; flex-shrink: 0; width: 14px; text-align: center; }
+.mnode-icon.micon-home::before { content: '⊙'; color: #409eff; }
+.mnode-icon.micon-folder::before { content: '▶'; color: #f39c12; }
+.mnode-icon.micon-script::before { content: '●'; color: #67c23a; }
+.mnode-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .scene-panel { flex: 1; min-width: 0; background: var(--el-bg-color); border: 1px solid var(--el-border-color); border-radius: 8px; padding: 12px; overflow: auto; }
+
+/* 新增/编辑弹窗 */
+.script-dialog-body { display: flex; gap: 0; height: 480px; }
+.script-picker { width: 260px; flex-shrink: 0; border-right: 1px solid var(--el-border-color); display: flex; flex-direction: column; overflow: hidden; padding-right: 12px; }
+.picker-header { display: flex; align-items: center; margin-bottom: 10px; flex-shrink: 0; }
+.picker-title { font-size: 13px; font-weight: 600; color: var(--el-text-color-primary); white-space: nowrap; }
+.picker-tree { flex: 1; overflow-y: auto; border: 1px solid var(--el-border-color); border-radius: 6px; padding: 4px; }
+.picker-node { display: flex; align-items: center; gap: 4px; width: 100%; padding-right: 4px; }
+.picker-node-name { font-size: 12px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.picker-badge { flex-shrink: 0; font-size: 10px; border-radius: 3px; padding: 0 5px; line-height: 16px; font-weight: 600; }
+.picker-badge--added { color: #67c23a; border: 1px solid #67c23a; }
+.picker-badge--add { color: #409eff; border: 1px solid #409eff; cursor: pointer; }
+.picker-icon { font-style: normal; font-size: 13px; flex-shrink: 0; }
+.picker-icon.icon-home::before { content: '⊙'; color: #409eff; }
+.picker-icon.icon-folder::before { content: '▶'; color: #f39c12; font-size: 10px; }
+.picker-icon.icon-script::before { content: '●'; color: #67c23a; font-size: 10px; }
+.script-arrow { width: 60px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.script-config { flex: 1; min-width: 0; display: flex; flex-direction: column; padding-left: 12px; overflow: hidden; }
+.selected-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-shrink: 0; }
+.selected-title { font-size: 13px; font-weight: 600; color: var(--el-text-color-primary); }
+.selected-list { flex: 1; min-height: 0; overflow-y: auto; border: 1px solid var(--el-border-color); border-radius: 6px; padding: 6px; }
+.selected-empty { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--el-text-color-placeholder); gap: 6px; font-size: 13px; }
+.selected-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; margin-bottom: 4px; background: var(--el-fill-color-light); border: 1px solid var(--el-border-color-lighter); transition: all .15s; }
+.selected-item:hover { background: var(--el-color-primary-light-9); border-color: #409eff; }
+.selected-index { width: 20px; height: 20px; border-radius: 50%; background: var(--el-color-primary-light-9); color: #409eff; font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.selected-name { font-size: 12px; color: var(--el-text-color-primary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.selected-del { font-size: 14px; color: var(--el-text-color-placeholder); cursor: pointer; flex-shrink: 0; }
+.selected-del:hover { color: #ff4d4f; }
 </style>
 
 <style lang="scss">

@@ -2,10 +2,10 @@
 	<div class="result-list-container">
 		<el-card shadow="hover" :body-style="{ paddingBottom: '0' }">
 			<el-form :inline="true" :model="searchParams.search">
-				<el-form-item label="任务名称">
+				<el-form-item label="名称">
 					<el-input
 						v-model="searchParams.search.name"
-						placeholder="请输入任务名称"
+						placeholder="请输入名称"
 						clearable
 						style="width: 220px"
 						@keyup.enter="get_script_result_list"
@@ -30,13 +30,13 @@
 				style="width: 100%"
 			>
 				<el-table-column type="index" label="序号" width="60" align="center" />
-				<el-table-column prop="name" label="任务名称" min-width="140" show-overflow-tooltip />
-				<el-table-column label="任务状态" width="110" align="center">
+				<el-table-column prop="name" label="名称" min-width="140" show-overflow-tooltip />
+				<el-table-column label="用例状态" width="110" align="center">
 					<template #default="{ row }">
 						<el-tag :type="statusMeta(row.status).tagType">{{ statusMeta(row.status).text }}</el-tag>
 					</template>
 				</el-table-column>
-				<el-table-column label="通过率" width="160" align="center">
+				<el-table-column label="通过率占比" width="160" align="center">
 					<template #default="{ row }">
 						<el-progress :percentage="row.result?.percent ?? 0" :color="customColors" :stroke-width="10" />
 					</template>
@@ -327,19 +327,19 @@ onMounted(() => {
 .action-cell { white-space: nowrap; }
 
 /* 抽屉头部 */
-.drawer-header { display: flex; align-items: flex-start; justify-content: space-between; width: 100%; }
+.drawer-header { display: flex; align-items: flex-start; justify-content: space-between; width: 100%; padding-bottom: 4px; }
 .drawer-header-info { flex: 1; min-width: 0; }
-.drawer-title { font-size: 16px; font-weight: 600; color: var(--el-text-color-primary); margin-bottom: 4px; word-break: break-all; }
-.drawer-subtitle { font-size: 12px; color: var(--el-text-color-placeholder); }
-.drawer-close { font-size: 20px; color: var(--el-text-color-placeholder); cursor: pointer; flex-shrink: 0; margin-left: 12px; }
+.drawer-title { font-size: 17px; font-weight: 600; color: var(--el-text-color-primary); margin-bottom: 6px; word-break: break-all; }
+.drawer-subtitle { font-size: 12px; color: var(--el-text-color-placeholder); line-height: 1.6; }
+.drawer-close { font-size: 20px; color: var(--el-text-color-placeholder); cursor: pointer; flex-shrink: 0; margin-left: 12px; margin-top: 2px; }
 .drawer-close:hover { color: var(--el-text-color-regular); }
 
 /* 汇总卡片 */
-.detail-summary-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
-.summary-card { background: linear-gradient(135deg, var(--el-fill-color-light), var(--el-bg-color)); border: 1px solid var(--el-border-color-lighter); border-radius: 10px; padding: 16px 12px; text-align: center; transition: all .2s; }
+.detail-summary-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 4px 0 20px; }
+.summary-card { background: linear-gradient(135deg, var(--el-fill-color-light), var(--el-bg-color)); border: 1px solid var(--el-border-color-lighter); border-radius: 12px; padding: 20px 12px; text-align: center; transition: all .2s; }
 .summary-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,.08); }
-.sc-val { font-size: 26px; font-weight: 700; color: var(--el-text-color-primary); margin-bottom: 4px; }
-.sc-label { font-size: 12px; color: var(--el-text-color-placeholder); letter-spacing: .5px; }
+.sc-val { font-size: 28px; font-weight: 700; color: var(--el-text-color-primary); margin-bottom: 6px; line-height: 1; }
+.sc-label { font-size: 12px; color: var(--el-text-color-placeholder); letter-spacing: .5px; margin-top: 2px; }
 .pass-card { background: linear-gradient(135deg, #f0f9ff, #e6f7ff); border-color: #b7eb8f; }
 .pass-card .sc-val { color: #52c41a; }
 .fail-card { background: linear-gradient(135deg, #fff1f0, #ffebe8); border-color: #ffccc7; }
@@ -348,10 +348,10 @@ onMounted(() => {
 .rate-card .sc-val { color: #722ed1; }
 
 /* 进度条 */
-.detail-progress { margin-bottom: 20px; }
+.detail-progress { margin-bottom: 24px; }
 
 /* 区块标题 */
-.detail-section-title { font-size: 13px; font-weight: 600; color: var(--el-text-color-primary); margin-bottom: 12px; padding-left: 10px; border-left: 3px solid #409eff; }
+.detail-section-title { font-size: 13px; font-weight: 600; color: var(--el-text-color-primary); margin-bottom: 14px; padding-left: 10px; border-left: 3px solid #409eff; }
 
 /* 用例列表 */
 .detail-case-list { display: flex; flex-direction: column; gap: 10px; }

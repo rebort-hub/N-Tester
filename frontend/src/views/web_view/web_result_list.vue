@@ -3,10 +3,10 @@
     <!-- 搜索栏 -->
     <el-card shadow="hover" :body-style="{ paddingBottom: '0' }">
       <el-form :inline="true" :model="searchParams.search">
-        <el-form-item label="任务名称">
+        <el-form-item label="名称">
           <el-input
             v-model="searchParams.search.task_name__icontains"
-            placeholder="请输入任务名称"
+            placeholder="请输入名称"
             clearable
             style="width: 220px"
             @keyup.enter="result_list"
@@ -32,7 +32,7 @@
         style="width: 100%"
       >
         <el-table-column type="index" label="序号" width="60" align="center" />
-        <el-table-column label="任务名称" prop="task_name" min-width="120" show-overflow-tooltip />
+        <el-table-column label="名称" prop="task_name" min-width="120" show-overflow-tooltip />
 
         <el-table-column label="执行浏览器" width="110" align="center">
           <template #default="{ row }">
@@ -50,13 +50,13 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="任务状态" width="110" align="center">
+        <el-table-column label="用例状态" width="110" align="center">
           <template #default="{ row }">
             <el-tag :type="statusMeta(row.status).tagType">{{ statusMeta(row.status).text }}</el-tag>
           </template>
         </el-table-column>
 
-        <el-table-column label="通过率" width="160" align="center">
+        <el-table-column label="用例通过率" width="160" align="center">
           <template #default="{ row }">
             <el-progress :percentage="row.percent ?? 0" :color="customColors" :stroke-width="10" />
           </template>
@@ -287,10 +287,11 @@ onMounted(() => { result_list() })
 <style scoped lang="scss">
 .result-list-container { padding: 10px; }
 .action-cell { white-space: nowrap; }
-.detail-summary-cards { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 16px; }
-.summary-card { background: linear-gradient(135deg,var(--el-fill-color-light),var(--el-bg-color)); border: 1px solid var(--el-border-color-lighter); border-radius: 10px; padding: 14px 10px; text-align: center; }
-.sc-val { font-size: 24px; font-weight: 700; color: var(--el-text-color-primary); margin-bottom: 4px; }
-.sc-label { font-size: 12px; color: var(--el-text-color-placeholder); }
+.detail-summary-cards { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin: 4px 0 20px; }
+.summary-card { background: linear-gradient(135deg,var(--el-fill-color-light),var(--el-bg-color)); border: 1px solid var(--el-border-color-lighter); border-radius: 12px; padding: 20px 12px; text-align: center; transition: all .2s; }
+.summary-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+.sc-val { font-size: 28px; font-weight: 700; color: var(--el-text-color-primary); margin-bottom: 6px; line-height: 1; }
+.sc-label { font-size: 12px; color: var(--el-text-color-placeholder); margin-top: 2px; }
 .pass-card { background: linear-gradient(135deg,#f6ffed,#d9f7be); border-color: #b7eb8f; }
 .pass-card .sc-val { color: #52c41a; }
 .fail-card { background: linear-gradient(135deg,#fff1f0,#ffccc7); border-color: #ffa39e; }
