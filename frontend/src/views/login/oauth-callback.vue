@@ -1,12 +1,11 @@
 <template>
   <div class="oauth-callback-container">
     <div class="oauth-callback-card">
-      <!-- Logo 区域 -->
       <div class="logo-section">
-        <img src="/@/assets/logo.svg" alt="Logo" class="logo" />
+        <img src="/@/assets/logo.png" alt="Logo" class="logo" />
       </div>
 
-      <!-- 成功状态 -->
+
       <div v-if="!state.error" class="callback-success">
         <div class="icon-wrapper">
           <el-icon class="loading-icon" :size="56">
@@ -31,7 +30,7 @@
         </p>
       </div>
 
-      <!-- 错误状态 -->
+
       <div v-else class="callback-error">
         <div class="icon-wrapper error">
           <el-icon class="error-icon" :size="56">
@@ -61,9 +60,9 @@
       </div>
     </div>
 
-    <!-- 底部信息 -->
+
     <div class="footer-info">
-      <p>© 2024 FastAPI Admin. All rights reserved.</p>
+      <p>© 2026 FastAPI N-Tester. All rights reserved.</p>
     </div>
   </div>
 </template>
@@ -91,7 +90,7 @@ const state = reactive({
   progress: 0,
 });
 
-// 进度条动画
+
 const startProgress = () => {
   const interval = setInterval(() => {
     if (state.progress < 90) {
@@ -104,21 +103,19 @@ const startProgress = () => {
   return interval;
 };
 
-/**
- * 处理 OAuth 回调
- */
+
 const handleOAuthCallback = async () => {
   const progressInterval = startProgress();
   
   try {
-    // 获取 URL 参数
+
     const provider = route.params.provider as OAuthProvider;
     const code = route.query.code as string;
     const stateParam = route.query.state as string;
 
     console.log('OAuth 回调参数:', { provider, code, stateParam });
 
-    // 验证参数
+
     if (!provider) {
       throw new Error('缺少 OAuth 提供商参数');
     }
@@ -127,7 +124,7 @@ const handleOAuthCallback = async () => {
       throw new Error('缺少授权码参数');
     }
 
-    // 验证 state 参数
+ 
     const savedState = sessionStorage.getItem('oauth_state');
     console.log('State 验证:', { savedState, stateParam });
     
@@ -135,7 +132,7 @@ const handleOAuthCallback = async () => {
       console.warn('State 参数不匹配，但继续处理（开发环境）');
     }
 
-    // 步骤 1: 验证授权
+ 
     state.message = '正在验证授权信息';
     state.tips = '正在与授权服务器通信...';
     state.progress = 25;
@@ -146,7 +143,7 @@ const handleOAuthCallback = async () => {
 
     const { data } = response;
 
-    // 步骤 2: 保存凭证
+ 
     state.message = '授权验证成功';
     state.tips = '正在保存登录凭证...';
     state.progress = 50;
@@ -156,7 +153,7 @@ const handleOAuthCallback = async () => {
     
     console.log('Token 已保存');
 
-    // 步骤 3: 获取用户信息
+ 
     state.message = '正在获取用户信息';
     state.tips = '正在加载您的个人资料...';
     state.progress = 70;
@@ -164,17 +161,17 @@ const handleOAuthCallback = async () => {
     await userStore.setUserInfos();
     console.log('用户信息已更新:', userStore.userInfos);
     
-    // 步骤 4: 加载菜单
+  
     state.message = '正在加载系统菜单';
     state.tips = '正在准备工作台...';
     state.progress = 85;
     
     await menuStore.setUserInfos();
 
-    // 清除保存的 state
+   
     sessionStorage.removeItem('oauth_state');
 
-    // 完成
+   
     state.progress = 100;
     state.message = '登录成功';
     state.tips = '即将进入系统...';
@@ -185,7 +182,7 @@ const handleOAuthCallback = async () => {
       duration: 2000,
     });
 
-    // 跳转到首页
+  
     setTimeout(() => {
       router.push('/');
     }, 600);
@@ -210,7 +207,7 @@ const handleOAuthCallback = async () => {
   }
 };
 
-// 页面加载时处理回调
+
 onMounted(() => {
   handleOAuthCallback();
 });
@@ -350,7 +347,7 @@ onMounted(() => {
   }
 }
 
-// 动画
+
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -371,7 +368,7 @@ onMounted(() => {
   }
 }
 
-// 响应式
+
 @media (max-width: 640px) {
   .oauth-callback-container {
     padding: 16px;

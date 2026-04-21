@@ -193,6 +193,7 @@ const signInSuccess = (isNoPower: boolean) => {
 <style scoped lang="scss">
 .login-content-form {
   margin-top: 20px;
+  border: none;
 
   // 给所有输入框添加圆角
   :deep(.el-input__wrapper) {
@@ -241,6 +242,13 @@ const signInSuccess = (isNoPower: boolean) => {
     letter-spacing: 2px;
     font-weight: 300;
     margin-top: 15px;
+  }
+
+  // 登录按钮所在的 form-item 去掉底部间距
+  .login-animation4 {
+    :deep(.el-form-item__content) {
+      border-bottom: none !important;
+    }
   }
 }
 </style>

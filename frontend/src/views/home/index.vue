@@ -282,9 +282,20 @@ const initDataFactoryChart = async () => {
   try {
     const r = await dashboardApi.getDataFactoryStats();
     const dist = r.data?.category_distribution || [];
+    const names = dist.length ? dist.map((i: any) => i.category) : ['暂无数据'];
+    const values = dist.length ? dist.map((i: any) => i.percentage) : [0];
+    const colors = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
     initChart(dataFactoryChart.value, {
-      tooltip: { trigger: 'item' },
-      series: [{ name: '工具使用', type: 'pie', radius: ['45%', '72%'], data: dist.length ? dist.map((i: any) => ({ name: i.category, value: i.percentage })) : [{ name: '暂无数据', value: 1, itemStyle: { color: '#e5e7eb' } }], itemStyle: { borderRadius: 6, borderWidth: 2, borderColor: '#fff' }, label: { show: dist.length === 0, position: 'center', formatter: '暂无数据', color: '#9ca3af' } }]
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: '{b}: {c}%' },
+      grid: { top: 16, bottom: 40, left: 50, right: 20 },
+      xAxis: { type: 'category', data: names, axisLabel: { color: '#6b7280', fontSize: 11, rotate: names.length > 4 ? 20 : 0 } },
+      yAxis: { type: 'value', name: '占比%', axisLabel: { color: '#6b7280', formatter: '{value}%' }, minInterval: 1 },
+      series: [{
+        type: 'bar',
+        data: values.map((v: number, i: number) => ({ value: v, itemStyle: { color: colors[i % colors.length], borderRadius: [6,6,0,0] } })),
+        barMaxWidth: 50,
+        label: { show: true, position: 'top', formatter: '{c}%', fontSize: 11, color: '#374151' },
+      }],
     });
   } catch {} finally { dataFactoryLoading.value = false; }
 };

@@ -16,9 +16,9 @@ export const backgroundImages = {
 // Logo配置
 export const logos = {
   // 主Logo
-  main: new URL('../assets/logo.svg', import.meta.url).href,
+  main: new URL('../assets/logo.png', import.meta.url).href,
   // 白色Logo（用于深色背景）
-  white: new URL('../assets/whiteLogo.svg', import.meta.url).href,
+  white: new URL('../assets/whiteLogo.png', import.meta.url).href,
   // 迷你Logo（用于折叠菜单）
   mini: new URL('../assets/logo-mini.png', import.meta.url).href,
 };
@@ -26,8 +26,8 @@ export const logos = {
 // 其他图片资源
 export const images = {
   // 登录页装饰图
-  loginMain: new URL('../assets/login-main.svg', import.meta.url).href,
-  loginBgSvg: new URL('../assets/login-bg.svg', import.meta.url).href,
+  loginMain: new URL('../assets/login-main.png', import.meta.url).href,
+  loginBgSvg: new URL('../assets/login-bg.png', import.meta.url).href,
   // 微信二维码
   weixin: new URL('../assets/weixin.png', import.meta.url).href,
 };

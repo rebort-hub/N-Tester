@@ -6,6 +6,7 @@
       <div 
         class="carousel-arrow carousel-arrow-left" 
         :class="{ disabled: scrollPosition <= 0 }"
+        v-show="maxScroll > 0"
         @click="scrollLeft"
       >
         <el-icon><ArrowLeft /></el-icon>
@@ -25,7 +26,7 @@
               :class="`oauth-button-${provider.name}`"
               @click="handleOAuthLogin(provider.name)"
             >
-              <Icon v-if="provider.icon" :icon="provider.icon" :size="24" />
+              <Icon v-if="provider.icon" :icon="provider.icon" :size="16" />
               <span v-else class="oauth-text">{{ provider.label.substring(0, 2) }}</span>
             </div>
           </el-tooltip>
@@ -36,6 +37,7 @@
       <div 
         class="carousel-arrow carousel-arrow-right"
         :class="{ disabled: scrollPosition >= maxScroll }"
+        v-show="maxScroll > 0"
         @click="scrollRight"
       >
         <el-icon><ArrowRight /></el-icon>
@@ -158,46 +160,54 @@ onUnmounted(() => {
 
 <style scoped lang="scss">
 .oauth-login {
-  margin-top: 30px;
-  padding-top: 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: none;
 
   .oauth-login-title {
     text-align: center;
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.8);
-    margin-bottom: 20px;
+    font-size: 12px;
+    color: var(--el-text-color-placeholder);
+    margin-bottom: 12px;
+    position: relative;
+
+    &::before, &::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      width: 28%;
+      height: 1px;
+      background: var(--el-border-color-lighter);
+    }
+    &::before { left: 0; }
+    &::after { right: 0; }
   }
 
   .oauth-carousel {
     display: flex;
     align-items: center;
-    gap: 12px;
-    position: relative;
+    justify-content: center;
+    gap: 8px;
 
     .carousel-arrow {
       flex-shrink: 0;
-      width: 32px;
-      height: 32px;
+      width: 24px;
+      height: 24px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      background: rgba(255, 255, 255, 0.15);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      transition: all 0.3s ease;
-      color: rgba(255, 255, 255, 0.9);
+      background: var(--el-fill-color-light);
+      border: 1px solid var(--el-border-color-light);
+      transition: all 0.2s ease;
+      color: var(--el-text-color-regular);
 
       &:hover:not(.disabled) {
-        background: rgba(255, 255, 255, 0.25);
-        border-color: rgba(255, 255, 255, 0.4);
+        background: var(--el-fill-color);
+        border-color: var(--el-color-primary);
+        color: var(--el-color-primary);
         transform: scale(1.05);
-      }
-
-      &:active:not(.disabled) {
-        transform: scale(0.95);
       }
 
       &.disabled {
@@ -206,178 +216,92 @@ onUnmounted(() => {
         pointer-events: none;
       }
 
-      .el-icon {
-        font-size: 16px;
-      }
+      .el-icon { font-size: 12px; }
     }
 
     .oauth-buttons-wrapper {
-      flex: 1;
       overflow-x: auto;
       overflow-y: hidden;
       scroll-behavior: smooth;
+      max-width: 100%;
       
-      // 隐藏滚动条
-      &::-webkit-scrollbar {
-        display: none;
-      }
+      &::-webkit-scrollbar { display: none; }
       -ms-overflow-style: none;
       scrollbar-width: none;
 
       .oauth-buttons-container {
         display: flex;
-        gap: 15px;
-        padding: 2px 0; // 防止阴影被裁剪
+        justify-content: center;
+        gap: 10px;
+        padding: 4px 2px;
 
         .oauth-button {
           flex-shrink: 0;
-          width: 45px;
-          height: 45px;
+          width: 34px;
+          height: 34px;
           border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
           cursor: pointer;
-          transition: all 0.3s ease;
-          border: 1px solid rgba(255, 255, 255, 0.2);
+          transition: all 0.2s ease;
+          border: 1px solid var(--el-border-color-light);
+          background: var(--el-bg-color);
           position: relative;
           overflow: hidden;
 
-          // 默认背景（半透明白色）
-          background: rgba(255, 255, 255, 0.1);
-          backdrop-filter: blur(10px);
-
           &:hover {
-            transform: translateY(-3px) scale(1.05);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border-color: transparent;
           }
 
-          &:active {
-            transform: translateY(-1px) scale(1.02);
-          }
-
-          // 各提供商的品牌色背景
           &-gitee {
-            background: linear-gradient(135deg, #c71d23 0%, #e84545 100%);
-            border-color: #c71d23;
-            
-            :deep(svg) {
-              color: #ffffff !important;
-              fill: #ffffff !important;
-            }
+            background: linear-gradient(135deg, #c71d23, #e84545);
+            border-color: transparent;
+            :deep(svg) { color: #fff !important; fill: #fff !important; }
           }
 
           &-github {
-            background: linear-gradient(135deg, #24292e 0%, #444d56 100%);
-            border-color: #24292e;
-            
-            :deep(svg) {
-              color: #ffffff !important;
-              fill: #ffffff !important;
-            }
+            background: linear-gradient(135deg, #24292e, #444d56);
+            border-color: transparent;
+            :deep(svg) { color: #fff !important; fill: #fff !important; }
           }
 
           &-qq {
-            background: #ffffff;
-            border-color: #e0e0e0;
-            
-            :deep(svg) {
-              color: #12b7f5;
-            }
+            background: #fff;
+            :deep(svg) { color: #12b7f5; }
           }
 
-          &-google {
-            background: #ffffff;
-            border-color: #e0e0e0;
-          }
+          &-google { background: #fff; }
 
           &-wechat {
-            background: linear-gradient(135deg, #07c160 0%, #2aae67 100%);
-            border-color: #07c160;
-            
-            :deep(svg) {
-              color: #ffffff !important;
-              fill: #ffffff !important;
-            }
+            background: linear-gradient(135deg, #07c160, #2aae67);
+            border-color: transparent;
+            :deep(svg) { color: #fff !important; fill: #fff !important; }
           }
 
-          &-microsoft {
-            background: #ffffff;
-            border-color: #e0e0e0;
-          }
+          &-microsoft { background: #fff; }
 
           &-dingtalk {
-            background: #ffffff;
-            border-color: #e0e0e0;
-            
-            :deep(svg) {
-              color: #0089ff;
-            }
+            background: #fff;
+            :deep(svg) { color: #0089ff; }
           }
 
           &-feishu {
-            background: #ffffff;
-            border-color: #e0e0e0;
-            
-            :deep(svg) {
-              color: #00d6b9;
-            }
+            background: #fff;
+            :deep(svg) { color: #00d6b9; }
           }
 
           .oauth-text {
-            font-size: 14px;
+            font-size: 11px;
             font-weight: 600;
-            color: inherit;
+            color: var(--el-text-color-primary);
           }
 
           :deep(svg) {
-            // 让图标显示原始颜色
-            filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
-            width: 24px;
-            height: 24px;
-          }
-          
-          // 只对特定按钮应用 currentColor
-          &-gitee,
-          &-github,
-          &-wechat {
-            :deep(svg path) {
-              fill: currentColor;
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-// 响应式：小屏幕时调整按钮大小
-@media (max-width: 640px) {
-  .oauth-login {
-    .oauth-carousel {
-      gap: 8px;
-
-      .carousel-arrow {
-        width: 28px;
-        height: 28px;
-
-        .el-icon {
-          font-size: 14px;
-        }
-      }
-
-      .oauth-buttons-wrapper {
-        .oauth-buttons-container {
-          gap: 12px;
-
-          .oauth-button {
-            width: 40px;
-            height: 40px;
-
-            :deep(svg) {
-              width: 20px;
-              height: 20px;
-            }
+            width: 16px;
+            height: 16px;
           }
         }
       }

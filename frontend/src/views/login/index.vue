@@ -1,303 +1,493 @@
 <template>
-  <div class="login-container flex h100" ref="loginContainerRef" :style="loginBgStyle">
-    <div class="login-left">
-      <!-- Logo -->
-      <div class="login-left-logo">
-        <img :src="logos.white" class="login-left-logo-img" alt="Logo"/>
+  <div class="login-page">
+    <div class="login-brand">
+      <div class="brand-logo">
+        <img :src="logos.white" alt="Logo" class="brand-logo-img" />
+        <span class="brand-name">N-Tester</span>
       </div>
-      <!--      <div class="login-left-img">-->
-      <!--        <img :src="loginMain"/>-->
-      <!--      </div>-->
-      <!--      <img :src="loginBg" class="login-left-waves"/>-->
-    </div>
-    <div class="login-right flex">
-      <div class="login-right-warp flex-margin">
-        <span class="login-right-warp-one"></span>
-        <span class="login-right-warp-two"></span>
-        <div class="login-right-warp-mian">
-          <div class="login-right-warp-main-title">{{ getThemeConfig.globalTitle }} 欢迎您！</div>
-          <div class="login-right-warp-main-form">
-            <div v-if="!state.isScan">
-              <el-tabs v-model="state.tabsActiveName">
-                <el-tab-pane label="账号密码登录" name="account">
-                  <Account/>
-                </el-tab-pane>
-                <!--                <el-tab-pane label="手机号登录" name="mobile">-->
-                <!--                  <Mobile/>-->
-                <!--                </el-tab-pane>-->
-              </el-tabs>
-              <!-- OAuth 第三方登录 -->
-              <OAuth/>
-            </div>
-            <Scan v-if="state.isScan"/>
-            <!--            <div class="login-content-main-sacn" @click="state.isScan = !state.isScan">-->
-            <!--              <i class="iconfont" :class="state.isScan ? 'icon-diannao1' : 'icon-barcode-qr'"></i>-->
-            <!--              <div class="login-content-main-sacn-delta"></div>-->
-            <!--            </div>-->
+      <div class="brand-inner">
+        <div class="brand-hero">
+          <div class="brand-tag">AI FULL-STACK TESTING PLATFORM</div>
+          <h1 class="brand-title">欢迎使用 {{ getThemeConfig.globalTitle }}</h1>
+          <p class="brand-desc">面向企业级的全栈自动化测试平台，集接口自动化、UI自动化、APP自动化于一体，让测试更高效、让业务更卓越。</p>
+          <div class="brand-dots">
+            <span class="dot dot-active"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="login-footer">
-      <div class="login-footer__content">
-        <span style="color: #fff">N-Tester平台</span> |
-        <a style="color: #fff" href="https://beian.miit.gov.cn/" class="slide" target="_blank">贵ICP备202698015号</a>
+  
+    <div class="login-form-area">
+      <div class="login-toolbar">
+        <div class="theme-colors">
+          <span
+            v-for="c in themePresets"
+            :key="c.color"
+            class="theme-dot"
+            :style="{ background: c.color }"
+            :class="{ active: isActiveTheme(c.color) }"
+            :title="c.name"
+            @click="switchTheme(c)"
+          >
+            <el-icon v-if="isActiveTheme(c.color)" class="theme-dot-check"><ele-Check /></el-icon>
+          </span>
+          <el-color-picker
+            v-model="getThemeConfig.primary"
+            size="small"
+            class="theme-custom-picker"
+            title="自定义颜色"
+            @change="onColorPickerChange"
+          />
+        </div>
+        <el-tooltip :content="getThemeConfig.isIsDark ? '切换浅色' : '切换深色'" placement="bottom">
+          <button class="dark-toggle" @click="toggleDark">
+            <el-icon v-if="getThemeConfig.isIsDark"><ele-Sunny /></el-icon>
+            <el-icon v-else><ele-Moon /></el-icon>
+          </button>
+        </el-tooltip>
+      </div>
+
+      <div class="login-form-card">
+        <div class="login-form-header">
+          <h2 class="login-form-title">欢迎回来</h2>
+          <p class="login-form-sub">输入您的账号和密码登录系统</p>
+        </div>
+
+        <div class="login-form-body">
+          <div v-if="!state.isScan">
+            <el-tabs v-model="state.tabsActiveName" class="login-tabs">
+              <el-tab-pane label="账号密码登录" name="account">
+                <Account />
+              </el-tab-pane>
+            </el-tabs>
+            <OAuth />
+          </div>
+          <Scan v-if="state.isScan" />
+        </div>
+      </div>
+
+  
+      <div class="login-copyright">
+        <span>N-Tester平台</span>
+        <span class="sep">|</span>
+        <a href="https://beian.miit.gov.cn/" target="_blank">贵ICP备202698015号</a>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts" name="loginIndex">
-import {computed, defineAsyncComponent, onMounted, reactive, ref} from 'vue';
-import {storeToRefs} from 'pinia';
-import {useThemeConfig} from '/@/stores/themeConfig';
-import {NextLoading} from '/@/utils/loading';
-import {backgroundImages, getBackgroundStyle, logos} from '/@/config/assets';
+import { computed, defineAsyncComponent, onMounted, reactive } from 'vue';
+import { storeToRefs } from 'pinia';
+import { useThemeConfig } from '/@/stores/themeConfig';
+import { NextLoading } from '/@/utils/loading';
+import { logos } from '/@/config/assets';
+import { onColorPickerChange, onAddDarkChange } from '/@/layout/navBars/topBar/settings/index';
+import { getHexColor } from '/@/utils/theme';
 
-const loginContainerRef = ref()
-
-// 引入组件
 const Account = defineAsyncComponent(() => import('/@/views/login/component/account.vue'));
 const Mobile = defineAsyncComponent(() => import('/@/views/login/component/mobile.vue'));
 const Scan = defineAsyncComponent(() => import('/@/views/login/component/scan.vue'));
 const OAuth = defineAsyncComponent(() => import('/@/views/login/component/oauth.vue'));
 
-// 定义变量内容
 const storesThemeConfig = useThemeConfig();
-const {themeConfig} = storeToRefs(storesThemeConfig);
-const state = reactive({
-  tabsActiveName: 'account',
-  isScan: false,
-});
+const { themeConfig } = storeToRefs(storesThemeConfig);
+const state = reactive({ tabsActiveName: 'account', isScan: false });
 
-// 获取布局配置信息
-const getThemeConfig = computed(() => {
-  return themeConfig.value;
-});
+const getThemeConfig = computed(() => themeConfig.value);
 
-// 获取登录背景样式
-const loginBgStyle = computed(() => {
-  return getBackgroundStyle(backgroundImages.loginBg);
-});
+const themePresets = [
+  { color: '#409eff', name: '默认蓝' },
+  { color: 'hsl(245 82% 67%)', name: '紫罗兰' },
+  { color: 'hsl(231 98% 65%)', name: '天蓝色' },
+  { color: 'hsl(161 90% 43%)', name: '浅绿色' },
+  { color: 'hsl(181 84% 32%)', name: '深绿色' },
+  { color: 'hsl(42 84% 61%)', name: '柠檬黄' },
+  { color: 'hsl(18 89% 40%)', name: '橙黄色' },
+  { color: 'hsl(347 77% 60%)', name: '樱花粉' },
+];
 
-// 页面加载时
-onMounted(() => {
-  NextLoading.done();
-});
+const switchTheme = (preset: { color: string }) => {
+  onColorPickerChange(preset.color);
+};
+
+const toggleDark = () => {
+  onAddDarkChange(getThemeConfig.value.isIsDark ? 'light' : 'dark');
+};
+
+const isActiveTheme = (color: string) => {
+  return getHexColor(color) === getThemeConfig.value.primary;
+};
+
+onMounted(() => { NextLoading.done(); });
 </script>
 
 <style scoped lang="scss">
-.login-container {
-  // 背景图通过 :style 绑定动态设置，便于统一管理和替换
+.login-page {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background: var(--el-bg-color-page);
+}
 
-  .login-left {
-    flex: 1;
-    position: relative;
-    //background-color: rgba(211, 239, 255, 1);
-    margin-right: 100px;
 
-    .login-left-logo {
-      position: absolute;
-      left: 50px;
-      top: 50px;
-      z-index: 1;
-      animation: logoAnimation 0.3s ease;
+.login-brand {
+  flex: 1;
+  position: relative;
+  background: linear-gradient(145deg, #f0f4ff 0%, #e8f0fe 40%, #dbeafe 70%, #bfdbfe 100%);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-      .login-left-logo-img {
-        max-width: 120px;
-        max-height: 120px;
-        object-fit: contain;
-      }
-    }
-
-    .login-left-img {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 100%;
-      height: 52%;
-
-      img {
-        width: 100%;
-        height: 100%;
-        animation: error-num 0.6s ease;
-      }
-    }
-
-    .login-left-waves {
-      position: absolute;
-      top: 0;
-      right: -100px;
-    }
+  &::before {
+    content: '';
+    position: absolute;
+    bottom: -120px;
+    left: -80px;
+    width: 420px;
+    height: 420px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(99,102,241,.18) 0%, rgba(59,130,246,.08) 60%, transparent 100%);
   }
 
-  .login-right {
-    width: 700px;
-
-    .login-right-warp {
-      border-radius: 20px;
-      width: 500px;
-      min-height: 500px;  // 改为 min-height，允许内容撑开
-      height: auto;       // 添加 auto 高度
-      position: relative;
-      overflow: visible;  // 改为 visible，允许内容溢出显示
-
-      backdrop-filter: blur(5px);
-      border: 1px rgba(255, 255, 255, 0.4) solid;
-      background-color: rgba(0, 0, 0, 0.277);
-      box-shadow: rgba(0, 0, 0, 0.3) 2px 8px 8px;
-      border-bottom: 1px rgba(40, 40, 40, 0.35) solid;
-      border-right: 1px rgba(40, 40, 40, 0.35) solid;
-
-      .login-right-warp-one,
-      .login-right-warp-two {
-        position: absolute;
-        display: block;
-        width: inherit;
-        height: inherit;
-
-        &::before,
-        &::after {
-          content: '';
-          position: absolute;
-          z-index: 1;
-        }
-      }
-
-      .login-right-warp-one {
-        //&::before {
-        //  filter: hue-rotate(0deg);
-        //  top: 0px;
-        //  left: 0;
-        //  width: 100%;
-        //  height: 3px;
-        //  background: linear-gradient(90deg, transparent, var(--el-color-primary));
-        //  animation: loginLeft 3s linear infinite;
-        //}
-        //
-        //&::after {
-        //  filter: hue-rotate(60deg);
-        //  top: -100%;
-        //  right: 2px;
-        //  width: 3px;
-        //  height: 100%;
-        //  background: linear-gradient(180deg, transparent, var(--el-color-primary));
-        //  animation: loginTop 3s linear infinite;
-        //  animation-delay: 0.7s;
-        //}
-      }
-
-      .login-right-warp-two {
-        //&::before {
-        //  filter: hue-rotate(120deg);
-        //  bottom: 2px;
-        //  right: -100%;
-        //  width: 100%;
-        //  height: 3px;
-        //  background: linear-gradient(270deg, transparent, var(--el-color-primary));
-        //  animation: loginRight 3s linear infinite;
-        //  animation-delay: 1.4s;
-        //}
-        //
-        //&::after {
-        //  filter: hue-rotate(300deg);
-        //  bottom: -100%;
-        //  left: 0px;
-        //  width: 3px;
-        //  height: 100%;
-        //  background: linear-gradient(360deg, transparent, var(--el-color-primary));
-        //  animation: loginBottom 3s linear infinite;
-        //  animation-delay: 2.1s;
-        //}
-      }
-
-      .login-right-warp-mian {
-        display: flex;
-        flex-direction: column;
-        min-height: 500px;  // 改为 min-height
-        height: auto;       // 添加 auto 高度
-        padding-bottom: 30px;  // 添加底部内边距
-
-        .login-right-warp-main-title {
-          height: 130px;
-          line-height: 130px;
-          font-size: 27px;
-          text-align: center;
-          letter-spacing: 3px;
-          animation: logoAnimation 0.3s ease;
-          animation-delay: 0.3s;
-          color: #FFF;
-        }
-
-        .login-right-warp-main-form {
-          flex: 1;
-          padding: 0 50px 30px;  // 增加底部内边距从 50px 到 30px（因为外层已有 30px）
-          min-height: 300px;     // 添加最小高度确保有足够空间
-
-          .login-content-main-sacn {
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 50px;
-            height: 50px;
-            overflow: hidden;
-            cursor: pointer;
-            transition: all ease 0.3s;
-            color: var(--el-color-primary);
-
-            &-delta {
-              position: absolute;
-              width: 35px;
-              height: 70px;
-              z-index: 2;
-              top: 2px;
-              right: 21px;
-              background: var(--el-color-white);
-              transform: rotate(-45deg);
-            }
-
-            &:hover {
-              opacity: 1;
-              transition: all ease 0.3s;
-              color: var(--el-color-primary) !important;
-            }
-
-            i {
-              width: 47px;
-              height: 50px;
-              display: inline-block;
-              font-size: 48px;
-              position: absolute;
-              right: 1px;
-              top: 0px;
-            }
-          }
-        }
-      }
-    }
+  &::after {
+    content: '';
+    position: absolute;
+    top: -60px;
+    right: -60px;
+    width: 280px;
+    height: 280px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(14,165,233,.12) 0%, transparent 70%);
   }
 }
 
-.login-footer {
+.brand-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 48px 56px;
   width: 100%;
-  bottom: 30px;
+}
+
+.brand-logo {
   position: absolute;
+  top: 32px;
+  left: 40px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 
-  background-color: transparent;
+.brand-logo-img {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(99,102,241,.35));
+}
 
-  .login-footer__content {
-    //margin: 0 auto;
-    white-space: nowrap;
-    mix-blend-mode: difference;
-    transform: translate(-50%);
-    position: absolute;
-    left: 50%;
+.brand-name {
+  font-size: 26px;
+  font-weight: 700;
+  color: #1e40af;
+  letter-spacing: .5px;
+}
 
-    .slide {
-      text-decoration: none;
+.brand-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.brand-tag {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  color: #6366f1;
+  margin-bottom: 16px;
+}
+
+.brand-title {
+  font-size: 38px;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.25;
+  margin: 0 0 18px;
+}
+
+.brand-desc {
+  font-size: 14px;
+  color: #64748b;
+  line-height: 1.8;
+  max-width: 380px;
+  margin: 0 0 28px;
+}
+
+.brand-dots {
+  display: flex;
+  gap: 8px;
+}
+
+.dot {
+  width: 24px;
+  height: 4px;
+  border-radius: 2px;
+  background: #cbd5e1;
+  transition: all .3s;
+}
+
+.dot-active {
+  width: 40px;
+  background: #6366f1;
+}
+
+.brand-deco { display: none; }
+
+
+.login-form-area {
+  width: 680px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 80px;
+  background: var(--el-bg-color);
+  border-left: 1px solid var(--el-border-color-light);
+  position: relative;
+}
+
+.login-form-card {
+  width: 100%;
+  max-width: 520px;
+}
+
+.login-form-header {
+  margin-bottom: 28px;
+}
+
+.login-form-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--el-text-color-primary);
+  margin: 0 0 6px;
+}
+
+.login-form-sub {
+  font-size: 14px;
+  color: var(--el-text-color-secondary);
+  margin: 0;
+}
+
+.login-form-body {
+  :deep(.el-tabs__header) { margin-bottom: 20px; }
+  :deep(.el-tabs__nav-wrap::after) { display: none; }
+  :deep(.el-tabs) { --el-tabs-header-height: 36px; }
+  :deep(.el-tabs__content) { overflow: visible; border: none; }
+  :deep(.el-tab-pane) { border: none; }
+  :deep(.login-content-form) { border: none; }
+  :deep(.el-tabs__item) {
+    font-size: 14px; color: #94a3b8; padding: 0 4px; height: 36px; line-height: 36px;
+    &.is-active { color: var(--el-color-primary); font-weight: 600; }
+  }
+  :deep(.el-tabs__active-bar) { background: var(--el-color-primary); height: 2px; border-radius: 1px; }
+  :deep(.el-input__wrapper) {
+    border-radius: 8px;
+    box-shadow: none !important;
+    border: 1px solid var(--el-border-color);
+    transition: border-color .2s;
+    &:hover { border-color: var(--el-color-primary-light-3); }
+    &.is-focus { border-color: var(--el-color-primary); border-width: 2px; }
+  }
+  :deep(.el-form-item) { margin-bottom: 22px; overflow: visible; }
+  :deep(.el-form-item__content) { overflow: visible; }
+  :deep(.el-form-item__error) { padding-top: 4px; font-size: 12px; }
+  :deep(.login-content-submit) {
+    width: 100%; height: 44px; border-radius: 8px;
+    background: var(--el-color-primary);
+    border: none; font-size: 15px; font-weight: 600; letter-spacing: .5px; transition: all .2s; margin-top: 8px;
+    &:hover { background: var(--el-color-primary-dark-2); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.2); }
+  }
+  
+  :deep(.oauth-login) { margin-top: 0; }
+}
+
+.login-copyright {
+  position: absolute;
+  bottom: 20px;
+  font-size: 12px;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  a { color: #94a3b8; text-decoration: none; &:hover { color: var(--el-color-primary); } }
+  .sep { color: #cbd5e1; }
+}
+
+
+.login-toolbar {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 24px;
+  padding: 6px 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+}
+
+.theme-colors {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.theme-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform .15s, box-shadow .15s;
+  flex-shrink: 0;
+
+  &:hover { transform: scale(1.15); }
+
+  &.active {
+    box-shadow: 0 0 0 2px #fff, 0 0 0 3px currentColor;
+  }
+
+  .theme-dot-check {
+    color: #fff;
+    font-size: 13px;
+  }
+}
+
+.theme-custom-picker {
+  :deep(.el-color-picker__trigger) {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: none;
+    padding: 0;
+  }
+  :deep(.el-color-picker__color) {
+    border-radius: 50%;
+    border: none;
+  }
+  :deep(.el-color-picker__icon) { display: none; }
+}
+
+.dark-toggle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--el-text-color-regular);
+  font-size: 16px;
+  transition: color .2s, background .2s;
+  padding: 0;
+
+  &:hover {
+    background: var(--el-fill-color-light);
+    color: var(--el-color-primary);
+  }
+}
+
+
+@media (max-width: 768px) {
+  .login-page {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+    overflow-y: auto;
+  }
+
+  
+  .login-brand {
+    flex: none;
+    height: 140px;
+    width: 100%;
+    justify-content: flex-start;
+    padding: 0 24px;
+
+    .brand-inner { display: none; }
+
+    .brand-logo {
+      position: static;
+      padding: 0;
     }
+
+    .brand-logo-img { width: 36px; height: 36px; }
+    .brand-name { font-size: 20px; }
+  }
+
+  
+  .login-form-area {
+    width: 100%;
+    flex-shrink: unset;
+    border-left: none;
+    border-top: 1px solid var(--el-border-color-light);
+    padding: 32px 24px 80px;
+    min-height: calc(100vh - 140px);
+    justify-content: flex-start;
+  }
+
+  .login-form-card {
+    max-width: 100%;
+  }
+
+  
+  .login-toolbar {
+    top: 12px;
+    right: 12px;
+    padding: 4px 8px;
+    gap: 4px;
+  }
+
+  .theme-dot {
+    width: 18px;
+    height: 18px;
+  }
+
+  .theme-custom-picker {
+    :deep(.el-color-picker__trigger) {
+      width: 18px;
+      height: 18px;
+    }
+  }
+
+  .dark-toggle {
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
+  }
+
+  .login-form-title { font-size: 22px; }
+
+  .login-copyright {
+    position: static;
+    margin-top: 24px;
+    justify-content: center;
   }
 }
 </style>
