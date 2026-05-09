@@ -81,8 +81,8 @@ const captchaCode = ref('');
 const state = reactive({
   isShowPassword: false,
   ruleForm: {
-    userName: '',
-    password: '',
+    userName: 'admin',
+    password: '123456',
     code: '',
   },
   rules: {

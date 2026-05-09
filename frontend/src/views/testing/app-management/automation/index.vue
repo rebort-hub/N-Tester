@@ -1095,12 +1095,14 @@ onMounted(() => {
                                   style="width: 100%;" :props="props1" clearable>
                                   <template #default="{ node, data }">
                                     <span style="float: left">{{ node.label }}</span>
-                                    <span v-if="data.file_path != null && data.file_path != ''" style="float: right;">
-                                      <el-image class="w-200px h-30px" :preview-teleported="true"
-                                        :preview-src-list="[data.file_path]" :src="data.file_path != null && data.file_path != ''
-                                          ? data.file_path
-                                          : 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'
-                                          ">
+                                    <span v-if="data.file_path != null && data.file_path != ''" style="float: right; margin-left: 8px;">
+                                      <el-image
+                                        style="width: 32px; height: 32px; border-radius: 4px; vertical-align: middle;"
+                                        fit="cover"
+                                        :preview-teleported="true"
+                                        :preview-src-list="[data.file_path]"
+                                        :src="data.file_path"
+                                      >
                                         <template #error></template>
                                       </el-image>
                                     </span>
@@ -1112,17 +1114,16 @@ onMounted(() => {
                                   :props="props1" style="width: 100%" clearable>
                                   <template #default="{ node, data }">
                                     <span style="float: left">{{ node.label }}</span>
-                                    <span v-if="data.file_path != null && data.file_path != ''" style="float:
-                                    right; color: var(--el-text-color-secondary)">
-                                      <el-image class="w-200px h-36px" :preview-teleported="true"
-                                        :preview-src-list="[data.file_path]" :src="data.file_path != null && data.file_path != ''
-                                          ? data.file_path
-                                          : 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'
-                                          ">
+                                    <span v-if="data.file_path != null && data.file_path != ''" style="float: right; margin-left: 8px;">
+                                      <el-image
+                                        style="width: 32px; height: 32px; border-radius: 4px; vertical-align: middle;"
+                                        fit="cover"
+                                        :preview-teleported="true"
+                                        :preview-src-list="[data.file_path]"
+                                        :src="data.file_path"
+                                      >
                                         <template #error>
-                                          <el-icon class="c-[--el-color-primary]" :size="36">
-                                            <CircleCloseFilled />
-                                          </el-icon>
+                                          <el-icon :size="16"><CircleCloseFilled /></el-icon>
                                         </template>
                                       </el-image>
                                     </span>

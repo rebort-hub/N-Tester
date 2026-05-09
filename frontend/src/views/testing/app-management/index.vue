@@ -51,12 +51,12 @@
 		</el-tabs>
 
 		<div class="app-test-module__body">
-			<DevicePage v-if="mainMenu === 'device'" />
-			<ProjectPage v-else-if="mainMenu === 'project'" />
-			<PageManage v-else-if="mainMenu === 'page'" />
-			<CaseSuite v-else-if="mainMenu === 'case'" />
-			<TaskPage v-else-if="mainMenu === 'task'" />
-			<ReportPage v-else-if="mainMenu === 'report'" />
+			<DevicePage  v-if="mainMenu === 'device'"  :key="'device'"  />
+			<ProjectPage v-else-if="mainMenu === 'project'" :key="'project'" />
+			<PageManage  v-else-if="mainMenu === 'page'"    :key="'page'"    />
+			<CaseSuite   v-else-if="mainMenu === 'case'"    :key="'case'"    />
+			<TaskPage    v-else-if="mainMenu === 'task'"    :key="'task'"    />
+			<ReportPage  v-else-if="mainMenu === 'report'"  :key="'report'"  />
 		</div>
 	</div>
 </template>
@@ -91,7 +91,7 @@ const mainMenu = ref<AppTestMenuKey>('device');
 const menuSubtitle = computed(() => {
 	const m: Record<AppTestMenuKey, string> = {
 		device: 'Appium 执行服务器 / 运行终端',
-		project: '安装包与图像素材',
+		project: '图像素材库',
 		page: '页面与元素',
 		case: '脚本树与步骤编排',
 		task: '调度任务',

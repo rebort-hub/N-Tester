@@ -85,15 +85,15 @@
             <span class="time-text">{{ formatDateTime(row.create_time) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="120" align="center" fixed="right">
+        <el-table-column label="操作" width="140" align="center">
           <template #default="{ row }">
             <div class="action-buttons">
-              <el-tooltip content="编辑" placement="top">
-                <el-button type="primary" :icon="Edit" circle size="small" @click="Edit(row)" />
-              </el-tooltip>
-              <el-tooltip content="删除" placement="top">
-                <el-button type="danger" :icon="Delete" circle size="small" @click="Delete(row)" />
-              </el-tooltip>
+              <el-button type="primary" size="small" @click="Edit(row)">
+                <el-icon><Edit /></el-icon> 编辑
+              </el-button>
+              <el-button type="danger" size="small" @click="Delete(row)">
+                <el-icon><Delete /></el-icon> 删除
+              </el-button>
             </div>
           </template>
         </el-table-column>
@@ -121,6 +121,7 @@
       :destroy-on-close="true"
       :before-close-check="false"
       :loading="confirmLoading"
+      :visible="dialogVisible"
       @koi-confirm="add_Confirm"
       @koi-cancel="add_Cancel"
     >
@@ -157,11 +158,16 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { MsgBox, MsgSuccess, NoticeError } from "@/utils/koi.ts";
-import { delete_img, img_list } from "@/api/api_app/img.ts";
-import { app_menu_select } from "@/api/api_app/app";
 import { formatDateTime } from "@/utils/formatTime";
 import { Edit, Delete, CircleCloseFilled, Avatar, Search, Refresh, Plus } from "@element-plus/icons-vue";
-import request from "@/utils/request";
+import request from "/@/utils/request";
+import { useAppManagementApi } from "/@/api/v1/app_management";
+
+const { app_menu_select } = useAppManagementApi();
+
+// 图像相关 API（直接用 request，与新版保持一致）
+const img_list_api = (data: any) => request({ url: '/v1/app_management/img_list', method: 'post', data });
+const delete_img_api = (data: any) => request({ url: '/v1/app_management/delete_img', method: 'post', data });
 
 // 搜索区域展示
 const showSearch = ref<boolean>(true);
@@ -186,6 +192,8 @@ const add_form = ref<{ file_list: any[]; type: string; id?: number; file_name?: 
 
 /** 添加 / 编辑弹窗 */
 const koiDialogRef = ref();
+/** 弹窗显隐状态，由代码显式控制，防止组件挂载时自动打开 */
+const dialogVisible = ref(false);
 
 /** 上传归属的项目 ID：打开抽屉时从当前筛选快照，避免与列表「项目」下拉联动导致重复/错项目写入 */
 const drawerMenuId = ref<number | string | "">("");
@@ -219,7 +227,7 @@ const get_img_list = async () => {
   try {
     loading.value = true;
     tableList.value = []; // 重置表格数据
-    const res: any = await img_list(searchParams.value);
+    const res: any = await img_list_api(searchParams.value);
     tableList.value = res.data.content;
     total.value = res.data.total;
   } catch {
@@ -269,7 +277,8 @@ const Add = () => {
   drawerUploadKey.value += 1;
   resetForm();
   add_form.value.type = "add";
-  koiDialogRef.value.koiOpen();
+  dialogVisible.value = true;
+  koiDialogRef.value?.koiOpen();
 };
 
 /** 清空表单数据 */
@@ -327,7 +336,8 @@ const add_Confirm = async () => {
     confirmLoading.value = false;
     resetForm();
     drawerUploadKey.value += 1;
-    koiDialogRef.value.koiQuickClose(committed ? "上传成功" : undefined);
+    koiDialogRef.value?.koiQuickClose(committed ? "上传成功" : undefined);
+    dialogVisible.value = false;
   }
 };
 
@@ -336,7 +346,8 @@ const add_Cancel = () => {
   revokeBlobUrls(add_form.value.file_list || []);
   resetForm();
   drawerUploadKey.value += 1;
-  koiDialogRef.value.koiQuickClose(undefined);
+  dialogVisible.value = false;
+  koiDialogRef.value?.koiQuickClose(undefined);
 };
 
 // 编辑用户（仅展示当前图，新增替换走 defer 提交）
@@ -354,7 +365,8 @@ const Edit = async (row: any) => {
       ? [{ name: row.file_name, url: row.file_path, status: "success" as const }]
       : []
   };
-  koiDialogRef.value.koiOpen();
+  dialogVisible.value = true;
+  koiDialogRef.value?.koiOpen();
 };
 
 const handleSelectionChange = (selection: any) => {
@@ -363,7 +375,7 @@ const handleSelectionChange = (selection: any) => {
 
 const Delete = async (row: any) => {
   MsgBox("您确认需要删除用户名称[" + row.file_name + "]么？").then(async () => {
-    const res: any = await delete_img({ id: row.id });
+    const res: any = await delete_img_api({ id: row.id });
     MsgSuccess(res.message);
     await get_img_list();
   });
@@ -482,8 +494,9 @@ onMounted(() => {
 /* 操作按钮样式 */
 .action-buttons {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   justify-content: center;
+  flex-wrap: wrap;
 }
 
 .action-button {

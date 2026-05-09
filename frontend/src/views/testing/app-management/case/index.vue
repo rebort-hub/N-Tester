@@ -233,8 +233,14 @@
                       <el-cascader v-model="script_info.android.img" :options="img_select_list" filterable style="width:100%" :props="props1" clearable placeholder="请选择图像">
                         <template #default="{ node, data }">
                           <span style="float:left">{{ node.label }}</span>
-                          <span v-if="data.file_path" style="float:right">
-                            <el-image class="w-200px h-30px" :preview-teleported="true" :preview-src-list="[data.file_path]" :src="data.file_path"><template #error></template></el-image>
+                          <span v-if="data.file_path" style="float:right; margin-left:8px">
+                            <el-image
+                              style="width:32px;height:32px;border-radius:4px;vertical-align:middle;"
+                              fit="cover"
+                              :preview-teleported="true"
+                              :preview-src-list="[data.file_path]"
+                              :src="data.file_path"
+                            ><template #error></template></el-image>
                           </span>
                         </template>
                       </el-cascader>
@@ -243,9 +249,15 @@
                       <el-cascader v-model="script_info.android.assert" :options="img_select_list" filterable :props="props1" style="width:100%" clearable placeholder="请选择断言图像">
                         <template #default="{ node, data }">
                           <span style="float:left">{{ node.label }}</span>
-                          <span v-if="data.file_path" style="float:right">
-                            <el-image class="w-200px h-36px" :preview-teleported="true" :preview-src-list="[data.file_path]" :src="data.file_path">
-                              <template #error><el-icon :size="36"><CircleCloseFilled /></el-icon></template>
+                          <span v-if="data.file_path" style="float:right; margin-left:8px">
+                            <el-image
+                              style="width:32px;height:32px;border-radius:4px;vertical-align:middle;"
+                              fit="cover"
+                              :preview-teleported="true"
+                              :preview-src-list="[data.file_path]"
+                              :src="data.file_path"
+                            >
+                              <template #error><el-icon :size="16"><CircleCloseFilled /></el-icon></template>
                             </el-image>
                           </span>
                         </template>
