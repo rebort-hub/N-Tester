@@ -117,7 +117,7 @@
 							</el-button>
 						</template>
 					</el-table-column>
-					<el-table-column label="#" width="56" align="center">
+					<el-table-column label="序号" width="56" align="center">
 						<template #default="scope">
 							{{ (pageQuery.currentPage - 1) * pageQuery.pageSize + scope.$index + 1 }}
 						</template>
@@ -218,7 +218,7 @@
 						</el-button>
 					</template>
 				</el-table-column>
-				<el-table-column type="index" label="#" width="44" align="center" />
+				<el-table-column type="index" label="序号" width="56" align="center" />
 				<el-table-column prop="name" label="名称" min-width="110" />
 				<el-table-column prop="locate_type" label="定位类型" width="120" />
 				<el-table-column prop="locate_value" label="定位值" min-width="180" show-overflow-tooltip />

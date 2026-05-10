@@ -139,7 +139,7 @@
                 v-loading="loading" 
                 :data="table_list" 
                 class="script-table"
-                empty-text="暂时没有数据哟🌻"
+                empty-text="暂时没有数据"
                 @selection-change="handleSelectionChange"
               >
                 <el-table-column type="selection" align="center" />
@@ -158,7 +158,7 @@
                 </el-table-column>
                 <el-table-column label="操作" align="center" fixed="right" width="120">
                   <template #default="{ row }">
-                    <el-tooltip content="删除🌻" placement="top">
+                    <el-tooltip content="删除" placement="top">
                       <el-button type="danger" :icon="Delete" circle plain size="small" @click="Delete_row(row.name)" />
                     </el-tooltip>
                   </template>
@@ -383,6 +383,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { ElTree, TabsPaneContext } from "element-plus";
 import { useRoute } from "vue-router";
 import { MsgBox, MsgError, MsgSuccess, NoticeError } from "@/utils/koi.ts";
+import { formatRequestError } from "/@/utils";
 import {
   add_app_menu,
   app_menu,
@@ -750,20 +751,17 @@ const get_img_select = async () => {
 };
 
 const del_script_info = async (node: any) => {
-  // 获取当前激活的 tab
   const activeTab = tab_list.value.find((tab: any) => tab.name === tab_active.value);
-  if (activeTab && activeTab.content && activeTab.content.script) {
-    const list = activeTab.content.script;
-    const index = list.findIndex((item: any) => item.name === node.label);
-    if (index !== -1) {
-      list.splice(index, 1);
-      // 自动保存到后端
-      try {
-        await save_app_script(activeTab.id);
-      } catch (error) {
-        NoticeError("删除失败，请重试");
-      }
-    }
+  if (!activeTab?.content?.script) return;
+  const list = activeTab.content.script;
+  const index = list.findIndex((item: any) => item.name === node.label);
+  if (index === -1) return;
+  const removed = list.splice(index, 1)[0];
+  try {
+    await save_app_script({ script: list, id: activeTab.id });
+  } catch (error: unknown) {
+    list.splice(index, 0, removed);
+    NoticeError(formatRequestError(error, "删除失败，请重试"));
   }
 };
 

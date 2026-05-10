@@ -164,7 +164,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
 import { Iphone, CopyDocument, Rank, QuestionFilled } from '@element-plus/icons-vue';
@@ -205,10 +205,11 @@ const rules: FormRules = {
 };
 
 function displayPhoneOs(row: any) {
-	const o = row.os ?? row.phone_os ?? '';
-	if (String(o).toLowerCase() === 'ios') return 'iOS';
-	if (o === 'Android') return 'Android';
-	return o || '-';
+	const o = row?.os ?? row?.phone_os;
+	const s = o == null || o === '' ? '' : String(o);
+	if (s.toLowerCase() === 'ios') return 'iOS';
+	if (s === 'Android' || s.toLowerCase() === 'android') return 'Android';
+	return s || '-';
 }
 
 function phoneOsTagType(row: any): 'success' | 'primary' {
@@ -385,9 +386,13 @@ const sortTable = async () => {
 };
 
 onMounted(() => {
-	getTableDataList();
 	setTableHeight();
 	window.addEventListener('resize', handleResize);
+	void (async () => {
+		await getTableDataList();
+		await nextTick();
+		(phoneTableRef.value as { doLayout?: () => void } | null)?.doLayout?.();
+	})();
 });
 
 onBeforeUnmount(() => {

@@ -1,9 +1,5 @@
 <template>
 	<div class="app-test-module">
-		<!--
-			单页聚合：一个菜单入口（testing/app-management/index）内用 Tab 切换子模块， 六块能力一一对应。
-			刻意不拆成多条后端子菜单路由，保持「一个大页面」的交互；?tab= 用于深链与报告跳用例。
-		-->
 		<div class="app-test-module__header">
 			<div class="header-left">
 				<div class="page-icon app">
@@ -17,53 +13,42 @@
 			</div>
 		</div>
 
-		<el-tabs v-model="mainMenu" class="app-test-module__tabs" @tab-change="onTabChange">
-			<el-tab-pane name="device">
-				<template #label>
-					<span class="tab-label"><el-icon><Monitor /></el-icon>设备管理</span>
-				</template>
-			</el-tab-pane>
-			<el-tab-pane name="project">
-				<template #label>
-					<span class="tab-label"><el-icon><Box /></el-icon>APP管理</span>
-				</template>
-			</el-tab-pane>
-			<el-tab-pane name="page">
-				<template #label>
-					<span class="tab-label"><el-icon><Reading /></el-icon>页面管理</span>
-				</template>
-			</el-tab-pane>
-			<el-tab-pane name="case">
-				<template #label>
-					<span class="tab-label"><el-icon><Files /></el-icon>用例管理</span>
-				</template>
-			</el-tab-pane>
-			<el-tab-pane name="task">
-				<template #label>
-					<span class="tab-label"><el-icon><Calendar /></el-icon>任务管理</span>
-				</template>
-			</el-tab-pane>
-			<el-tab-pane name="report">
-				<template #label>
-					<span class="tab-label"><el-icon><Histogram /></el-icon>测试报告</span>
-				</template>
-			</el-tab-pane>
-		</el-tabs>
+		<!--
+			不用 el-tabs：空 pane + 隐藏 content 时在 EP 2.7 + Vue 3.5 下点击会走 removeFocus，
+			与 v-if 切换子页叠加易触发 unmountComponent / subTree 空引用。
+		-->
+		<nav class="app-test-module__nav" role="tablist" aria-label="APP 自动化模块">
+			<button
+				v-for="item in MAIN_MENU"
+				:key="item.name"
+				type="button"
+				class="app-test-nav-item"
+				role="tab"
+				:aria-selected="mainMenu === item.name"
+				:class="{ 'is-active': mainMenu === item.name }"
+				@click="onSelectMainMenu(item.name)"
+			>
+				<span class="tab-label">
+					<el-icon><component :is="item.icon" /></el-icon>
+					{{ item.label }}
+				</span>
+			</button>
+		</nav>
 
+		<!--
+			单一动态组件 + key：避免长 v-if/v-else-if 链在同一次 patch 里卸载多块子树，
+			在 Vue 3.5 + 重型子页（表格/弹层）下易触发 getNextHostNode(subTree null)。
+		-->
 		<div class="app-test-module__body">
-			<DevicePage  v-if="mainMenu === 'device'"  :key="'device'"  />
-			<ProjectPage v-else-if="mainMenu === 'project'" :key="'project'" />
-			<PageManage  v-else-if="mainMenu === 'page'"    :key="'page'"    />
-			<CaseSuite   v-else-if="mainMenu === 'case'"    :key="'case'"    />
-			<TaskPage    v-else-if="mainMenu === 'task'"    :key="'task'"    />
-			<ReportPage  v-else-if="mainMenu === 'report'"  :key="'report'"  />
+			<component :is="PAGE_MAP[mainMenu]" :key="mainMenu" />
 		</div>
 	</div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import type { Component } from 'vue';
+import { computed, markRaw, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import {
 	Monitor,
 	Box,
@@ -84,8 +69,32 @@ type AppTestMenuKey = 'device' | 'project' | 'page' | 'case' | 'task' | 'report'
 
 const MENU_KEYS: AppTestMenuKey[] = ['device', 'project', 'page', 'case', 'task', 'report'];
 
+const MAIN_MENU: { name: AppTestMenuKey; label: string; icon: Component }[] = [
+	{ name: 'device', label: '设备管理', icon: Monitor },
+	{ name: 'project', label: 'APP管理', icon: Box },
+	{ name: 'page', label: '页面管理', icon: Reading },
+	{ name: 'case', label: '用例管理', icon: Files },
+	{ name: 'task', label: '任务管理', icon: Calendar },
+	{ name: 'report', label: '测试报告', icon: Histogram },
+];
+
+const PAGE_MAP: Record<AppTestMenuKey, Component> = {
+	device: markRaw(DevicePage),
+	project: markRaw(ProjectPage),
+	page: markRaw(PageManage),
+	case: markRaw(CaseSuite),
+	task: markRaw(TaskPage),
+	report: markRaw(ReportPage),
+};
+
 const route = useRoute();
-const router = useRouter();
+
+/**
+ * 子模块切换用本地 ref 立即更新 DOM，避免 router.replace 改 fullPath → parent.vue 里 transition+keep-alive
+ * 与内部 <component> 换页抢同一轮 patch（subTree / emitsOptions 空引用）。
+ * 地址栏用 history.replaceState 静默同步；浏览器前进后退用 popstate 读回。
+ * 外部 router.push（如报告带 ?tab=）仍通过 watch(route.fullPath) 对齐。
+ */
 const mainMenu = ref<AppTestMenuKey>('device');
 
 const menuSubtitle = computed(() => {
@@ -104,33 +113,72 @@ function isMenuKey(v: unknown): v is AppTestMenuKey {
 	return typeof v === 'string' && (MENU_KEYS as string[]).includes(v);
 }
 
-function applyTabFromRoute() {
-	const t = route.query.tab;
-	if (isMenuKey(t)) {
-		mainMenu.value = t;
-		return;
+/** Vue Router 的 query 可能为 string | string[]，统一成单值再校验 */
+function queryParamSingle(v: unknown): string | undefined {
+	if (v === undefined || v === null) return undefined;
+	if (Array.isArray(v)) return v.length ? String(v[0]) : undefined;
+	return String(v);
+}
+
+/** 只改地址栏，不触发 vue-router finalizeNavigation，避免 parent.vue 对 fullPath 的 watch 搅动外层 transition */
+function silentSetTabQuery(key: AppTestMenuKey) {
+	try {
+		const u = new URL(window.location.href);
+		u.searchParams.set('tab', key);
+		window.history.replaceState(window.history.state, '', `${u.pathname}${u.search}${u.hash}`);
+	} catch {
+		void 0;
 	}
-	mainMenu.value = 'device';
+}
+
+function onPopState() {
+	try {
+		const u = new URL(window.location.href);
+		const t = u.searchParams.get('tab');
+		const next = isMenuKey(t) ? t : 'device';
+		if (mainMenu.value !== next) mainMenu.value = next;
+	} catch {
+		void 0;
+	}
 }
 
 watch(
-	() => route.query.tab,
+	() => route.fullPath,
 	() => {
-		applyTabFromRoute();
+		const t = queryParamSingle(route.query.tab);
+		if (!isMenuKey(t)) {
+			mainMenu.value = 'device';
+			silentSetTabQuery('device');
+			return;
+		}
+		if (mainMenu.value !== t) mainMenu.value = t;
 	},
-	{ immediate: true },
+	{ immediate: true, flush: 'post' },
 );
 
 onMounted(() => {
-	if (!isMenuKey(route.query.tab)) {
-		router.replace({ query: { ...route.query, tab: mainMenu.value } });
+	window.addEventListener('popstate', onPopState);
+	if (!isMenuKey(queryParamSingle(route.query.tab))) {
+		silentSetTabQuery('device');
 	}
 });
 
-function onTabChange(name: string | number) {
-	const key = String(name);
-	if (!isMenuKey(key)) return;
-	router.replace({ query: { ...route.query, tab: key } });
+onBeforeUnmount(() => {
+	window.removeEventListener('popstate', onPopState);
+});
+
+function onSelectMainMenu(key: AppTestMenuKey) {
+	if (mainMenu.value === key) return;
+	silentSetTabQuery(key);
+	/** 与外层 layout transition+keep-alive 错开两帧再换子页，减轻 unmount/mount 与异步 flush 竞态 */
+	const swap = () => {
+		mainMenu.value = key;
+	};
+	if (typeof requestAnimationFrame === 'function') {
+		requestAnimationFrame(() => requestAnimationFrame(swap));
+	} else {
+		setTimeout(swap, 32);
+	}
 }
 </script>
 
@@ -190,18 +238,37 @@ function onTabChange(name: string | number) {
 	}
 }
 
-.app-test-module__tabs {
-	margin-bottom: 0;
+.app-test-module__nav {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin: 0 0 8px;
+	padding: 6px 8px;
+	background: var(--el-fill-color-light);
+	border-radius: 4px;
+	box-sizing: border-box;
+}
 
-	:deep(.el-tabs__header) {
-		margin: 0 0 8px;
-		background: var(--el-fill-color-light);
-		border-radius: 4px;
-		padding: 0 8px;
+.app-test-nav-item {
+	margin: 0;
+	padding: 8px 14px;
+	border: none;
+	border-radius: 4px;
+	background: transparent;
+	cursor: pointer;
+	font: inherit;
+	color: var(--el-text-color-regular);
+	transition: color 0.2s, background 0.2s;
+
+	&:hover {
+		color: var(--el-color-primary);
 	}
 
-	:deep(.el-tabs__content) {
-		display: none;
+	&.is-active {
+		color: var(--el-color-primary);
+		font-weight: 600;
+		background: var(--el-bg-color);
+		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 	}
 }
 

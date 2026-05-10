@@ -504,6 +504,34 @@ def run_appium_process(
                 fail=fail_n,
             )
         )
+    except Exception as e:
+        # 避免未捕获异常导致汇总 end_time 永不更新、列表一直「执行中」
+        try:
+            n = len(scripts or [])
+            loop.run_until_complete(
+                _log_result(
+                    deviceid=deviceid,
+                    result_id=result_id,
+                    menu_id=menu_id,
+                    name="执行异常",
+                    status=0,
+                    log=str(e)[:4000],
+                    performance=perf_snapshot(),
+                    user_id=user_id,
+                )
+            )
+            loop.run_until_complete(
+                _update_summary(
+                    result_id=result_id,
+                    deviceid=deviceid,
+                    user_id=user_id,
+                    total=max(n, 1),
+                    passed=passed,
+                    fail=max(n - passed, fail_n, 1),
+                )
+            )
+        except Exception:
+            pass
     finally:
         try:
             if driver:

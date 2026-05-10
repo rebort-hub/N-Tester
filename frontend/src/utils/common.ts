@@ -83,7 +83,7 @@ export const generateColorByContent = (str: string) => {
 function pickPageRows(obj: any, depth = 0): any[] {
 	if (!obj || typeof obj !== 'object' || depth > 2) return [];
 	if (Array.isArray(obj)) return obj;
-	for (const key of ['data', 'items', 'rows', 'content'] as const) {
+	for (const key of ['data', 'items', 'rows', 'content', 'list', 'records'] as const) {
 		const v = obj[key];
 		if (Array.isArray(v)) return v;
 	}
@@ -110,4 +110,34 @@ export function parseListPagePayload(res: any): { list: any[]; total: number } {
 	const list = pickPageRows(payload);
 	const total = pickPageTotal(payload, list.length);
 	return { list, total };
+}
+
+/** 与 `utils/request` 拦截器配合：优先 Error.message，其次 HTTP 体 msg/message/detail（含 FastAPI 422 数组） */
+export function formatRequestError(error: unknown, fallback = '请求失败'): string {
+	if (typeof error === 'string' && error.trim()) return error.trim();
+	if (!error || typeof error !== 'object') return fallback;
+	const e = error as Record<string, any>;
+	const msg = e.message;
+	if (typeof msg === 'string' && msg.trim()) return msg.trim();
+	const data = e.response?.data;
+	if (data && typeof data === 'object') {
+		for (const key of ['msg', 'message'] as const) {
+			const v = data[key];
+			if (typeof v === 'string' && v.trim()) return v.trim();
+		}
+		const detail = data.detail;
+		if (typeof detail === 'string' && detail.trim()) return detail.trim();
+		if (Array.isArray(detail)) {
+			const parts = detail.map((d: any) => {
+				if (typeof d === 'string') return d;
+				if (d && typeof d === 'object') {
+					const m = d.msg ?? d.message;
+					if (typeof m === 'string' && m.trim()) return m.trim();
+				}
+				return '';
+			}).filter(Boolean);
+			if (parts.length) return parts.join('；');
+		}
+	}
+	return fallback;
 }

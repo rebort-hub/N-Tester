@@ -171,7 +171,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
 import { Monitor, CopyDocument, Rank, QuestionFilled } from '@element-plus/icons-vue';
@@ -218,12 +218,15 @@ const rules: FormRules = {
 	appium_version: [{ required: true, message: '请选择版本', trigger: 'change' }],
 };
 
-function displayServerOs(raw: string) {
-	const k = (raw || '').toLowerCase();
+/** 表格传入整行；server_os 可能为数字/对象等非字符串，统一 String 再 toLowerCase */
+function displayServerOs(row: Record<string, unknown> | null | undefined): string {
+	const v = row?.server_os ?? row?.os;
+	const s = v == null || v === '' ? '' : String(v);
+	const k = s.toLowerCase();
 	if (k === 'linux') return 'Linux';
 	if (k === 'windows') return 'Windows';
 	if (k === 'mac' || k === 'macos') return 'macOS';
-	return raw || '-';
+	return s || '-';
 }
 
 function getOsTagType(os: string): 'success' | 'primary' | 'warning' | 'info' {
@@ -420,9 +423,13 @@ const sortTable = async () => {
 };
 
 onMounted(() => {
-	getTableDataList();
 	setTableHeight();
 	window.addEventListener('resize', handleResize);
+	void (async () => {
+		await getTableDataList();
+		await nextTick();
+		(serverTableRef.value as { doLayout?: () => void } | null)?.doLayout?.();
+	})();
 });
 
 onBeforeUnmount(() => {

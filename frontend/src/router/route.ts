@@ -77,6 +77,22 @@ export const dynamicRoutes: Array<RouteRecordRaw> = [
 					icon: 'ele-Document',
 				},
 			},
+			// APP 自动化 — 执行详情报告（测试报告页「查看报告」跳转，无需后端菜单）
+			{
+				path: '/app_report',
+				name: 'appAutomationReport',
+				component: () => import('/src/views/testing/app-management/app_report.vue'),
+				meta: {
+					title: 'APP 测试报告',
+					isLink: '',
+					isHide: true,
+					isKeepAlive: false,
+					isAffix: false,
+					isIframe: false,
+					roles: ['admin', 'common'],
+					icon: 'ele-Document',
+				},
+			},
 			// API 用例工作流编辑器
 			{
 				path: '/testing/api-automation/workflow/:caseId/:serviceId?',

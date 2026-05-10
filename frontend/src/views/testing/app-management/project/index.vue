@@ -4,12 +4,12 @@
 			<span class="page-toolbar__title">APP管理</span>
 			<span class="page-toolbar__hint">图像资源库</span>
 		</div>
-		<AppImages />
+		<AppImageLibrary />
 	</div>
 </template>
 
 <script setup lang="ts">
-import AppImages from '../app_images.vue';
+import AppImageLibrary from './AppImageLibrary.vue';
 </script>
 
 <style scoped lang="scss">

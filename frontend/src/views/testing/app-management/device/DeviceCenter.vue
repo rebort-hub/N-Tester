@@ -23,14 +23,32 @@
 			</div>
 		</div>
 
-		<el-tabs v-model="activeName" class="ntest-device-tabs">
-			<el-tab-pane name="server" label="appium执行服务器">
-				<AppiumServerPanel v-if="activeName === 'server'" ref="serverPanelRef" />
-			</el-tab-pane>
-			<el-tab-pane name="phone" label="手机设备管理">
-				<RunPhonePanel v-if="activeName === 'phone'" ref="phonePanelRef" />
-			</el-tab-pane>
-		</el-tabs>
+		<nav class="ntest-device-nav" role="tablist" aria-label="设备中心">
+			<button
+				type="button"
+				class="ntest-device-nav-item"
+				role="tab"
+				:aria-selected="activeName === 'server'"
+				:class="{ 'is-active': activeName === 'server' }"
+				@click="setActiveSub('server')"
+			>
+				appium执行服务器
+			</button>
+			<button
+				type="button"
+				class="ntest-device-nav-item"
+				role="tab"
+				:aria-selected="activeName === 'phone'"
+				:class="{ 'is-active': activeName === 'phone' }"
+				@click="setActiveSub('phone')"
+			>
+				手机设备管理
+			</button>
+		</nav>
+		<div class="ntest-device-panels">
+			<AppiumServerPanel v-if="activeName === 'server'" ref="serverPanelRef" :key="'device-server'" />
+			<RunPhonePanel v-if="activeName === 'phone'" ref="phonePanelRef" :key="'device-phone'" />
+		</div>
 	</div>
 </template>
 
@@ -43,6 +61,10 @@ import RunPhonePanel from './RunPhonePanel.vue';
 const activeName = ref<'server' | 'phone'>('server');
 const serverPanelRef = ref<InstanceType<typeof AppiumServerPanel> | null>(null);
 const phonePanelRef = ref<InstanceType<typeof RunPhonePanel> | null>(null);
+
+function setActiveSub(k: 'server' | 'phone') {
+	activeName.value = k;
+}
 
 function showAddDrawer() {
 	if (activeName.value === 'server') {
@@ -114,18 +136,43 @@ function showAddDrawer() {
 		}
 	}
 
-	.ntest-device-tabs {
+	.ntest-device-nav {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px;
 		margin: 10px;
-	}
-
-	:deep(.el-tabs__header) {
+		padding: 6px 8px;
 		background: var(--el-fill-color-light);
-		border-radius: 4px 4px 0 0;
-		margin: 0;
+		border-radius: 4px;
+		box-sizing: border-box;
 	}
 
-	:deep(.el-tabs__item:hover) {
-		color: #409eff;
+	.ntest-device-nav-item {
+		margin: 0;
+		padding: 8px 16px;
+		border: none;
+		border-radius: 4px;
+		background: transparent;
+		cursor: pointer;
+		font: inherit;
+		font-size: 14px;
+		color: var(--el-text-color-regular);
+		transition: color 0.2s, background 0.2s;
+
+		&:hover {
+			color: #409eff;
+		}
+
+		&.is-active {
+			color: #409eff;
+			font-weight: 600;
+			background: var(--el-bg-color);
+			box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+		}
+	}
+
+	.ntest-device-panels {
+		margin: 0 10px 10px;
 	}
 
 	:deep(.el-table) {
