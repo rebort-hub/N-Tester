@@ -59,6 +59,8 @@ services:
     environment:
       - REDIS_URI=redis://redis:6379/4
       - MYSQL_DATABASE_URI=mysql+asyncmy://${MYSQL_USER:-admin}:${MYSQL_PASSWORD:-admin123456}@mysql:3306/${MYSQL_DATABASE:-ntester}?charset=UTF8MB4
+      # APScheduler JobStore / Alembic 等同步引擎使用（与 asyncmy 成对）
+      - MYSQL_DATABASE_URI_SYNC=mysql+pymysql://${MYSQL_USER:-admin}:${MYSQL_PASSWORD:-admin123456}@mysql:3306/${MYSQL_DATABASE:-ntester}?charset=UTF8MB4
       - CELERY_BROKER_URL=redis://redis:6379/5
       - CELERY_RESULT_BACKEND=redis://redis:6379/5
       - CELERY_BEAT_DB_URL=mysql+pymysql://${MYSQL_USER:-admin}:${MYSQL_PASSWORD:-admin123456}@mysql:3306/${MYSQL_DATABASE:-ntester}?charset=UTF8MB4
@@ -67,6 +69,32 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - fast-admin-network
+    volumes:
+      - ./backend/logs:/app/logs
+      - ./backend/files:/app/files
+
+  scheduler-runner:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fast-admin-scheduler-runner
+    restart: always
+    command: python scheduler_runner.py
+    environment:
+      - REDIS_URI=redis://redis:6379/4
+      - MYSQL_DATABASE_URI=mysql+asyncmy://${MYSQL_USER:-admin}:${MYSQL_PASSWORD:-admin123456}@mysql:3306/${MYSQL_DATABASE:-ntester}?charset=UTF8MB4
+      - MYSQL_DATABASE_URI_SYNC=mysql+pymysql://${MYSQL_USER:-admin}:${MYSQL_PASSWORD:-admin123456}@mysql:3306/${MYSQL_DATABASE:-ntester}?charset=UTF8MB4
+      - CELERY_BROKER_URL=redis://redis:6379/5
+      - CELERY_RESULT_BACKEND=redis://redis:6379/5
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_started
     networks:
       - fast-admin-network
     volumes:
@@ -84,6 +112,7 @@ services:
     environment:
       - REDIS_URI=redis://redis:6379/4
       - MYSQL_DATABASE_URI=mysql+asyncmy://${MYSQL_USER:-admin}:${MYSQL_PASSWORD:-admin123456}@mysql:3306/${MYSQL_DATABASE:-ntester}?charset=UTF8MB4
+      - MYSQL_DATABASE_URI_SYNC=mysql+pymysql://${MYSQL_USER:-admin}:${MYSQL_PASSWORD:-admin123456}@mysql:3306/${MYSQL_DATABASE:-ntester}?charset=UTF8MB4
       - CELERY_BROKER_URL=redis://redis:6379/5
       - CELERY_RESULT_BACKEND=redis://redis:6379/5
     depends_on:
@@ -107,6 +136,7 @@ services:
     environment:
       - REDIS_URI=redis://redis:6379/4
       - MYSQL_DATABASE_URI=mysql+asyncmy://${MYSQL_USER:-admin}:${MYSQL_PASSWORD:-admin123456}@mysql:3306/${MYSQL_DATABASE:-ntester}?charset=UTF8MB4
+      - MYSQL_DATABASE_URI_SYNC=mysql+pymysql://${MYSQL_USER:-admin}:${MYSQL_PASSWORD:-admin123456}@mysql:3306/${MYSQL_DATABASE:-ntester}?charset=UTF8MB4
       - CELERY_BROKER_URL=redis://redis:6379/5
       - CELERY_RESULT_BACKEND=redis://redis:6379/5
       - CELERY_BEAT_DB_URL=mysql+pymysql://${MYSQL_USER:-admin}:${MYSQL_PASSWORD:-admin123456}@mysql:3306/${MYSQL_DATABASE:-ntester}?charset=UTF8MB4
