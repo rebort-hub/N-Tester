@@ -57,5 +57,6 @@ router.include_router(task_scheduler_router, prefix="/task_scheduler", tags=["�
 router.include_router(precision_test_router, prefix="/precision_test", tags=["精准测试"])
 router.include_router(desktop_automation_router, prefix="/desktop_automation", tags=["客户端UI自动化"])
 router.include_router(miniprogram_automation_router, prefix="/miniprogram_automation", tags=["小程序自动化"])
+# router.include_router(performance_router, prefix="performance",tags=["性能测试"])
 
 __all__ = ["router"]

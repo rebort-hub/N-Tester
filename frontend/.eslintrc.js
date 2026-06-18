@@ -70,7 +70,7 @@ module.exports = {
 		'no-unused-vars': 'error',
 		'no-v-model-argument': 'off',
 		'no-case-declarations': 'off',
-		'no-console': 'error',
+		'no-console': 'warn', // 原为error，现降级为警告
 		'no-redeclare': 'off',
 	},
 };

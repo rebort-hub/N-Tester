@@ -1,18 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-供 Windows 企业安装器在安装末尾调用：根据安装向导生成的 INI 写出解压根目录 config.yaml。
-
-用法:
-  python write_installer_config.py <params.ini> <config.yaml 输出路径>
-
-INI 分段（UTF-8）:
-  [server]   host, port
-  [mysql]    host, port, user, password, name
-  [redis]    uri
-  [celery]   broker_url, result_backend, beat_db_url  （可选；缺省时由 mysql 推导）
-  [security] secret_key
-  [frontend] dist_path, public_base_url
+供 Windows 企业安装器
 """
 from __future__ import annotations
 

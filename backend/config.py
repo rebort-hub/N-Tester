@@ -20,8 +20,6 @@ class Configs(BaseSettings):
     BASE_URL: AnyHttpUrl = Field(default="http://127.0.0.1:8100", validation_alias="BASE_URL")  # 开发环境
     # 前端访问地址（用于通知中的“查看报告”链接）。未配置则回退 BASE_URL。
     FRONTEND_BASE_URL: str = Field(default="", validation_alias="FRONTEND_BASE_URL")
-    # 便携目录部署：前端构建产物目录（绝对路径）；非空时由 FastAPI 托管 SPA（见 init_mount）
-    FRONTEND_DIST_PATH: str = Field(default="", validation_alias="FRONTEND_DIST_PATH")
 
     API_PREFIX: str = "/api"  # 接口前缀 - v1版本通过路由器添加
     STATIC_DIR: str = 'static'  # 静态文件目录
@@ -186,7 +184,26 @@ class Configs(BaseSettings):
     
     # Ollama (本地)
     OLLAMA_HOST: str = Field(default="http://localhost:11434", validation_alias="OLLAMA_HOST")
-    
+
+    # ================================================= #
+    # ******** MinIO 对象存储配置，性能测试模块使用 ******** #
+    # ================================================= #
+    MINIO_ENDPOINT: str = Field(default="127.0.0.1:9000", validation_alias="MINIO_ENDPOINT")
+    MINIO_ACCESS_KEY: str = Field(default="minioadmin", validation_alias="MINIO_ACCESS_KEY")
+    MINIO_SECRET_KEY: str = Field(default="minioadmin", validation_alias="MINIO_SECRET_KEY")
+    MINIO_SECURE: bool = Field(default=False, validation_alias="MINIO_SECURE")
+    MINIO_BUCKET: str = Field(default="performance", validation_alias="MINIO_BUCKET")
+
+    # --------------压力机SSH连接相关配置-----------------
+    # 平台机（控制机）私钥文件绝对路径，paramiko 用此密钥 SSH 登录 Master/Slave/单机
+    # Windows 平台机路径示例：C:\Users\xxx\.ssh\id_rsa
+    PLATFORM_SSH_KEY_PATH: str = Field(default="/root/.ssh/id_rsa", validation_alias="PLATFORM_SSH_KEY_PATH")
+    # 目标压力机（Linux）上的默认私钥路径，Master 执行 ssh/scp 命令访问 Worker 时通过 -i 指定
+    DEFAULT_SSH_KEY_PATH: str = Field(default="/root/.ssh/id_rsa", validation_alias="DEFAULT_SSH_KEY_PATH")
+    # 机器未配置 ssh_user/ssh_password 时的全局兜底凭据
+    SSH_DEFAULT_USER: str = Field(default="root", validation_alias="SSH_DEFAULT_USER")
+    SSH_DEFAULT_PASSWORD: str = Field(default="", validation_alias="SSH_DEFAULT_PASSWORD")
+
     # ================================================= #
     # ******** APP 自动化（Airtest / 子进程执行器） *********** #
     # ================================================= #
@@ -209,24 +226,11 @@ class Configs(BaseSettings):
     # 设为 1/true/yes 时使用 Appium+OpenCV 执行器（无需安装 airtest）
     USE_APPIUM_APP_EXECUTOR: str = Field(default="", validation_alias="USE_APPIUM_APP_EXECUTOR")
     APPIUM_SERVER_URL: str = Field(default="http://127.0.0.1:4723", validation_alias="APPIUM_SERVER_URL")
-    
+
     # Appium 模板路径拼接根目录
     APP_TEMPLATE_ROOT: str = Field(default="backend", validation_alias="APP_TEMPLATE_ROOT")
-    
+
     model_config = SettingsConfigDict(case_sensitive=True, env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
-def _bootstrap_portable_config() -> None:
-    """在实例化 Configs 之前应用便携目录 config.yaml（若存在）。"""
-    import warnings
-
-    try:
-        from portable_env import load_portable_yaml_into_environ
-
-        load_portable_yaml_into_environ()
-    except Exception as e:
-        warnings.warn(f"便携配置 config.yaml 未应用: {e}", stacklevel=2)
-
-
-_bootstrap_portable_config()
 config = Configs()

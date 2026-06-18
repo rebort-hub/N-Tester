@@ -42,7 +42,7 @@
 		// "noUncheckedIndexedAccess": true,      /* Include 'undefined' in index signature results */
 
 		/* Module Resolution Options */
-		"moduleResolution": "node" /* Specify module resolution strategy: 'node' (Node.js) or 'classic' (TypeScript pre-1.6). */,
+		"moduleResolution": "bundler" /* Specify module resolution strategy. */,
 		"baseUrl": "." /* Base directory to resolve non-absolute module names. */,
 		"paths": {
 			"/@/*": ["src/*"]
@@ -67,8 +67,7 @@
 
 		/* Advanced Options */
 		"skipLibCheck": true /* Skip type checking of declaration files. */,
-		"forceConsistentCasingInFileNames": true /* Disallow inconsistently-cased references to the same file. */,
-		"suppressImplicitAnyIndexErrors": true
+		"forceConsistentCasingInFileNames": true /* Disallow inconsistently-cased references to the same file. */
 	},
 	"include": ["src/**/*.ts", "src/**/*.vue", "src/**/*.tsx", "src/**/*.d.ts"], // **Represents any directory, and * represents any file. Indicates that all files in the src directory will be compiled
 	"exclude": ["node_modules", "dist"] // Indicates the file directory that does not need to be compiled

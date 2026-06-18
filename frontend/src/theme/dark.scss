@@ -69,10 +69,14 @@
 	--el-fill-colo: var(--next-color-hover-rgba) !important;
 	--el-fill-color: var(--next-color-hover-rgba) !important;
 	--el-fill-color-blank: var(--next-color-disabled) !important;
-	--el-fill-color-light: var(--next-color-hover-rgba) !important;
+	// 深色下表头 / 操作列填充色：#303030 不透明（element-plus 官方深色主题的 light 本身是不透明）
+	// 不透明是 fixed/sticky 列遮罩横向滚动内容的前提
+	--el-fill-color-light: var(--next-color-primary) !important;
 	--el-bg-color-overlay: var(--el-color-primary-light-9) !important;
 	--el-mask-color: rgb(42 42 42 / 80%);
-	--el-fill-color-lighter: var(--next-color-hover-rgba) !important;
+	// 深色下斑马偶数行 / 空白填充色：#252525（介于基础 #191919 与表头 #303030 之间，看起来像半透明叠加）
+	// 同样保持不透明以兼容 fixed 列遮罩
+	--el-fill-color-lighter: #252525 !important;
 
 	// button
 	.el-button {
@@ -80,17 +84,34 @@
 			border-color: var(--next-border-color) !important;
 		}
 	}
-	.el-button--primary,
-	.el-button--info,
-	.el-button--danger,
-	.el-button--success,
-	.el-button--warning {
+	// 实心 / 朴素按钮：白字+主题色背景，文字保持白色
+	.el-button--primary:not(.is-text):not(.is-link),
+	.el-button--info:not(.is-text):not(.is-link),
+	.el-button--danger:not(.is-text):not(.is-link),
+	.el-button--success:not(.is-text):not(.is-link),
+	.el-button--warning:not(.is-text):not(.is-link) {
 		--el-button-text-color: var(--next-color-white) !important;
 		--el-button-hover-text-color: var(--next-color-white) !important;
 		--el-button-disabled-text-color: var(--next-color-white) !important;
 		&:hover {
 			border-color: var(--el-button-hover-border-color, var(--el-button-hover-bg-color)) !important;
 		}
+	}
+	// 文字/链接按钮：深色下保留语义色，使用 light-3 提亮以保证深色背景下可读性
+	.el-button.is-text,
+	.el-button.is-link {
+		&.el-button--primary { --el-button-text-color: var(--el-color-primary-light-3) !important; }
+		&.el-button--success { --el-button-text-color: var(--el-color-success-light-3) !important; }
+		&.el-button--warning { --el-button-text-color: var(--el-color-warning-light-3) !important; }
+		&.el-button--danger  { --el-button-text-color: var(--el-color-danger-light-3) !important; }
+		&.el-button--info    { --el-button-text-color: var(--el-color-info-light-3) !important; }
+
+		// hover 时进一步提亮一档
+		&.el-button--primary:hover { --el-button-hover-text-color: var(--el-color-primary-light-5) !important; }
+		&.el-button--success:hover { --el-button-hover-text-color: var(--el-color-success-light-5) !important; }
+		&.el-button--warning:hover { --el-button-hover-text-color: var(--el-color-warning-light-5) !important; }
+		&.el-button--danger:hover  { --el-button-hover-text-color: var(--el-color-danger-light-5) !important; }
+		&.el-button--info:hover    { --el-button-hover-text-color: var(--el-color-info-light-5) !important; }
 	}
 
 	// drawer
@@ -258,5 +279,28 @@
 	// loading
 	.el-loading-mask {
 		background-color: var(--next-bg-main) !important;
+	}
+
+	// 表格行高亮色：hover 行使用比斑马偶数行更亮的 #3c3c3c，确保 hover 与斑马有视觉区分
+	--el-table-row-hover-bg-color: var(--next-color-hover) !important;
+
+	// 嵌套展开表格的 sticky 末列（场景管理 - 展开行表格）
+	// 提升选择器特殊性以胜过 .vue scoped 内的同名规则
+	.el-card .expand-table th:last-child,
+	.el-card .expand-table td:last-child {
+		background-color: var(--next-color-primary) !important;
+	}
+
+	// 操作列（class-name=operation-col）：使用稍亮一档色保持与基础行的视觉区分
+	// 提升选择器特殊性 (.el-card + .el-table + .el-table__cell + .operation-col + td) 以覆盖 .vue scoped 内的常态规则
+	.el-card .el-table td.el-table__cell.operation-col,
+	.el-card .el-table th.el-table__cell.operation-col {
+		background-color: var(--next-color-primary) !important;
+	}
+
+	// hover 行下的操作列：跟随 hover 行变亮（element-plus 2.x 通过 .hover-row class 控制）
+	.el-card .el-table .el-table__body tr.hover-row > td.el-table__cell.operation-col,
+	.el-card .el-table .el-table__body tr:hover > td.el-table__cell.operation-col {
+		background-color: var(--next-color-hover) !important;
 	}
 }

@@ -8,6 +8,8 @@ from app.corelibs.logger import init_logger, logger
 from app.init.cors import init_cors
 from app.init.exception import init_exception
 from app.init.middleware import init_middleware
+from app.init.minio import init_minio
+from app.init.scheduler import init_scheduler, shutdown_scheduler, load_perf_pending_jobs
 from app.init.routers import init_router
 from app.init.mount import init_mount
 from app.init.limiter import init_limiter
@@ -21,14 +23,26 @@ async def start_app(app: FastAPI):
     from app.db import get_redis_pool
     redis_pool_instance = get_redis_pool()
     redis_pool_instance.init_by_config(config=config)
-    
+
     init_logger()
     logger.info("日志初始化成功！！!")
-    
+
     # 初始化限流器（异步）
     await init_limiter(app)
 
+    # 初始化Minio文件服务
+    await init_minio()
+
+    # 启动 APScheduler 定时任务调度器
+    init_scheduler()
+
+    # 恢复性能测试待触发定时任务（MemoryJobStore 重启后清空）
+    await load_perf_pending_jobs()
+
     yield
+
+    # 关闭 APScheduler 定时任务调度器
+    shutdown_scheduler()
 
     await redis_pool_instance.redis.close()
 

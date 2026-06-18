@@ -79,7 +79,6 @@ coverage.xml
 
 # Django stuff:
 *.log
-*.html
 *.pyc
 *.xml
 *.iml

@@ -584,7 +584,7 @@ class TaskSchedulerService:
         result: Dict[str, Any] = {"message": "scheduled trigger ok (execution engine not integrated yet)"}
 
         try:
-            
+            # type==3 → ApiAutomationService.run_api_script()
             if int(task_config.get("type") or 0) == 3:
                 from app.db.sqlalchemy import async_session
                 from app.api.v1.api_automation.service import ApiAutomationService
@@ -638,6 +638,7 @@ class TaskSchedulerService:
                     "scripts": api_script_list,
                     "api_result_id": api_result_id,
                 }
+            # type==2-->WebManagementService.execute_web_script()
             elif int(task_config.get("type") or 0) == 2:
                 from app.db.sqlalchemy import async_session
                 from app.api.v1.web_management.service import WebManagementService

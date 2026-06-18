@@ -58,7 +58,9 @@ async def init_limiter(app: FastAPI):
         redis_connection = aioredis.from_url(
             redis_uri,
             encoding="utf-8",
-            decode_responses=True
+            decode_responses=True,
+            socket_timeout=5,
+            socket_connect_timeout=5,
         )
         
         # 初始化 FastAPILimiter

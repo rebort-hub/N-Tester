@@ -31,14 +31,11 @@ bcrypt==4.2.0
 cryptography==40.0.2
 PyJWT==2.11.0
 Authlib==1.6.6
+pycryptodomex==3.23.0
 
 # HTTP客户端
 requests==2.32.5
 httpx==0.28.1
-websockets>=12.0
-grpcio>=1.60.0,<2.0.0
-grpcio-reflection>=1.60.0,<2.0.0
-paho-mqtt>=2.1.0,<3.0.0
 
 
 # 文件处理
@@ -47,6 +44,8 @@ pandas==3.0.1
 openpyxl==3.1.5
 python-docx==1.2.0
 pypdf==6.6.2
+minio==7.2.20   # Minio文件服务
+paramiko==4.0.0  # 远程命令执行 和 文件传输
 
 
 # 配置和日志

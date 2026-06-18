@@ -18,6 +18,12 @@
   margin-right: 5px;
 }
 
+/* Small Button 小按钮 - 字体调整为 14px，高度配套调整为 26px（内容区 = 26-2-10 = 14px，垂直居中零偏移） */
+.el-button--small {
+  font-size: 14px !important;
+  height: 26px !important;
+}
+
 /* Input 输入框、InputNumber 计数器
 ------------------------------- */
 .el-input__inner {
@@ -380,6 +386,17 @@
     height: 100%;
     overflow: auto;
   }
+}
+
+/* 性能测试 - 嵌套展开表（.expand-table）数据行 hover 背景色
+   放在全局非 scoped 文件中，避免 .vue scoped 区域被 linter 反复修改时丢失
+   使用 element row-hover 变量自动适配深浅：浅 #f5f7fa / 深 #3c3c3c（dark.scss 已重写）*/
+.perf-scene-container .expand-detail .expand-table tbody tr:hover > td {
+  background: var(--el-table-row-hover-bg-color) !important;
+}
+
+.perf-scene-container .expand-detail .expand-table tbody tr:hover > td:last-child {
+  background: var(--el-table-row-hover-bg-color) !important;
 }
 
 

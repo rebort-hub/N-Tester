@@ -36,12 +36,15 @@ grpcio>=1.60.0,<2.0.0
 grpcio-reflection>=1.60.0,<2.0.0
 paho-mqtt>=2.1.0,<3.0.0
 
+
 # 文件处理
 aiofiles==25.1.0
 pandas==3.0.1
 openpyxl==3.1.5
 python-docx==1.2.0
 pypdf==6.6.2
+minio==7.2.20   # Minio文件服务
+paramiko==4.0.0  # 远程命令执行 和 文件传输
 
 # 环境配置
 python-dotenv==1.2.1

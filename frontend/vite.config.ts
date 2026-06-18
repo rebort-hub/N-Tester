@@ -13,16 +13,6 @@ const pathResolve = (dir: string) => {
   return resolve(__dirname, '.', dir);
 };
 
-/** Docker / CI  */
-function envJsonBool(v: string | undefined, fallback: boolean): boolean {
-  if (v === undefined || v === '') return fallback;
-  try {
-    return JSON.parse(v);
-  } catch {
-    return fallback;
-  }
-}
-
 const alias: Record<string, string> = {
   '/@': pathResolve('./src/'),
   '@': pathResolve('./src/'),
@@ -98,11 +88,11 @@ const viteConfig = defineConfig((mode: ConfigEnv) => {
     },
     root: process.cwd(),
     resolve: {alias},
-    base: mode.command === 'serve' ? './' : (env.VITE_PUBLIC_PATH || '/'),
+    base: mode.command === 'serve' ? './' : env.VITE_PUBLIC_PATH,
     server: {
       host: '0.0.0.0',
-      port: Number(env.VITE_PORT) || 5173,
-      open: envJsonBool(env.VITE_OPEN, false),
+      port: env.VITE_PORT as unknown as number,
+      open: env.VITE_OPEN?.toLowerCase() === 'true',
       hmr: true,
       proxy: {
         // '/gitee': {
@@ -114,7 +104,6 @@ const viteConfig = defineConfig((mode: ConfigEnv) => {
       },
     },
     build: {
-      sourcemap: false,
       outDir: 'dist',
       chunkSizeWarningLimit: 1500,
       rollupOptions: {

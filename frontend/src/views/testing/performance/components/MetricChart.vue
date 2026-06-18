@@ -1,5 +1,10 @@
 <template>
-	<div class="metric-chart-panel" :class="{ 'is-dark': darkMode }">
+	<div
+		class="metric-chart-panel"
+		:class="{ 'is-dark': darkMode }"
+		@mousemove="onMouseMove"
+		@mouseleave="onMouseLeave"
+	>
 		<div class="panel-title-handle" />
 		<el-tooltip v-if="expandable" content="放大" placement="top" :show-after="400">
 			<el-button class="panel-expand-btn" size="small" text circle @click="handleExpand">
@@ -7,6 +12,12 @@
 			</el-button>
 		</el-tooltip>
 		<div ref="chartRef" class="panel-chart" :style="{ height: chartHeight + 'px' }" />
+
+		<!-- 自定义 Y 轴横向十字线：吸附到最近数据点（ECharts trigger:axis 模式下 Y 轴无法原生吸附） -->
+		<div v-if="yCrossVisible" class="y-snap-line" :style="{ top: yCrossTop + 'px' }" />
+		<div v-if="yCrossVisible" class="y-snap-label" :style="{ top: (yCrossTop - 10) + 'px', right: yCrossRight + 'px' }">
+			{{ yCrossVal }}
+		</div>
 	</div>
 </template>
 
@@ -60,7 +71,6 @@ const buildOption = (dark: boolean): echarts.EChartsOption => {
 	const titleColor = dark ? '#d8d9da' : '#303133';
 	const tooltipBg  = dark ? '#1c2128' : '#fff';
 	const tooltipBorder = dark ? '#454c53' : '#ddd';
-	// Grafana 使用 Inter 字体族，与 ECharts 默认 sans-serif 有明显视觉差异
 	const fontFamily = 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
 	return {
@@ -79,23 +89,17 @@ const buildOption = (dark: boolean): echarts.EChartsOption => {
 			textStyle: { color: dark ? '#d8d9da' : '#303133', fontSize: 12, fontFamily },
 			axisPointer: {
 				type: 'cross',
-				// crossStyle → X 轴纵向指示线；lineStyle → Y 轴横向指示线
-				crossStyle: {
-					color: dark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)',
-					width: 1,
-					type: 'dashed',
-				},
+				// Y 轴横线隐藏（由自定义 DOM 吸附替代）
+				crossStyle: { width: 0, color: 'transparent' },
 				lineStyle: {
 					color: dark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)',
 					width: 1,
 					type: 'dashed',
 				},
-				// 轴上标注：字号小、背景浅、垂直居中
 				label: {
-					fontSize: 10,
-					height: 16,
-					lineHeight: 16,
-					padding: [0, 5],
+					show: true,
+					fontSize: 12,
+					padding: [3, 6],
 					backgroundColor: dark ? 'rgba(44,50,53,0.85)' : 'rgba(220,222,226,0.8)',
 					color: dark ? '#c2cad6' : '#666',
 					fontFamily,
@@ -144,8 +148,7 @@ const buildOption = (dark: boolean): echarts.EChartsOption => {
 			axisLine: { lineStyle: { color: axisColor } },
 			axisTick: { show: false },
 			axisLabel: { color: labelColor, fontSize: 12, fontWeight: 400, fontFamily },
-			// 纵向网格线
-			splitLine: { show: true, lineStyle: { color: gridColor, type: 'dashed' } },
+			splitLine: { show: true, lineStyle: { color: gridColor } },
 		},
 		yAxis: {
 			type: 'value',
@@ -155,8 +158,9 @@ const buildOption = (dark: boolean): echarts.EChartsOption => {
 			axisLine: { show: false },
 			axisTick: { show: false },
 			axisLabel: { color: labelColor, fontSize: 12, fontWeight: 400, fontFamily },
-			// 横向网格线
 			splitLine: { show: true, lineStyle: { color: gridColor } },
+			// 隐藏 ECharts Y 轴 cross 标注（由自定义 DOM 替代）
+			axisPointer: { show: false },
 		},
 		series: props.series.map((s, i) => ({
 			name: s.name,
@@ -168,7 +172,6 @@ const buildOption = (dark: boolean): echarts.EChartsOption => {
 			showSymbol: true,
 			lineStyle: { width: 1.5, color: colors[i % colors.length] },
 			itemStyle: { color: colors[i % colors.length] },
-			// 悬停：中心点不变，外框淡化放大
 			emphasis: {
 				scale: false,
 				itemStyle: {
@@ -217,6 +220,55 @@ onBeforeUnmount(() => {
 const handleExpand = () => {
 	emit('expand', { title: props.title, unit: props.unit, series: props.series, timeLabels: props.timeLabels });
 };
+
+// ── 自定义 Y 轴吸附十字线 ─────────────────────────────────────
+const yCrossVisible = ref(false);
+const yCrossTop = ref(0);
+const yCrossVal = ref('');
+const yCrossRight = ref(0); // 距容器右边距，使标注紧贴 Y 轴
+
+const onMouseMove = (e: MouseEvent) => {
+	if (!chartInstance || !chartRef.value) return;
+	const rect = chartRef.value.getBoundingClientRect();
+	const px = e.clientX - rect.left;
+	const py = e.clientY - rect.top;
+
+	// 仅在图表网格区域内响应
+	if (!chartInstance.containPixel('grid', [px, py])) {
+		yCrossVisible.value = false;
+		return;
+	}
+
+	const [xF, yF] = chartInstance.convertFromPixel({ gridIndex: 0 }, [px, py]) as [number, number];
+	const xI = Math.max(0, Math.min(Math.round(xF), props.timeLabels.length - 1));
+
+	// 在当前 X 位置，找与鼠标 Y 值最近的系列数据点
+	let bestY = yF;
+	let minDiff = Infinity;
+	props.series.forEach(s => {
+		const v = s.data[xI];
+		if (v != null) {
+			const diff = Math.abs(Number(v) - yF);
+			if (diff < minDiff) { minDiff = diff; bestY = Number(v); }
+		}
+	});
+
+	// 将吸附后的数据坐标转回像素坐标
+	// 用第一个时间标签作为 X 参考（category 轴需传字符串，不能传数字索引）
+	const refX = props.timeLabels[0] ?? 0;
+	const [yAxisPx, snappedPy] = chartInstance.convertToPixel({ gridIndex: 0 }, [refX, bestY]) as [number, number];
+
+	yCrossTop.value = snappedPy;
+	// 保留有效小数：整数直接显示，小数去掉尾部零（最多保留 2 位）
+	yCrossVal.value = parseFloat(bestY.toFixed(2)).toString();
+	// 标注右对齐到 Y 轴位置（距容器右边 = 容器宽 - Y轴像素X + 4）
+	yCrossRight.value = chartRef.value.offsetWidth - yAxisPx + 4;
+	yCrossVisible.value = true;
+};
+
+const onMouseLeave = () => {
+	yCrossVisible.value = false;
+};
 </script>
 
 <style scoped lang="scss">
@@ -231,7 +283,6 @@ const handleExpand = () => {
 		border-color: #32333a;
 		background: #181b1f;
 
-
 		.panel-expand-btn {
 			color: #9e9e9e !important;
 
@@ -239,6 +290,15 @@ const handleExpand = () => {
 				color: #d9d9d9 !important;
 				background: rgba(255, 255, 255, 0.1) !important;
 			}
+		}
+
+		.y-snap-line {
+			border-top-color: rgba(255, 255, 255, 0.28);
+		}
+
+		.y-snap-label {
+			background: rgba(44, 50, 53, 0.92);
+			color: #c2cad6;
 		}
 	}
 
@@ -268,6 +328,32 @@ const handleExpand = () => {
 
 	.panel-chart {
 		width: 100%;
+	}
+
+	// 自定义 Y 轴横向吸附十字线
+	.y-snap-line {
+		position: absolute;
+		left: 0;
+		right: 0;
+		height: 0;
+		border-top: 1px dashed rgba(0, 0, 0, 0.25);
+		pointer-events: none;
+		z-index: 6;
+	}
+
+	// 自定义 Y 轴标注（紧贴 Y 轴，右对齐）
+	.y-snap-label {
+		position: absolute;
+		height: 20px;
+		line-height: 20px;
+		padding: 0 5px;
+		font-size: 12px;
+		border-radius: 2px;
+		background: rgba(220, 222, 226, 0.92);
+		color: #555;
+		pointer-events: none;
+		z-index: 7;
+		white-space: nowrap;
 	}
 }
 </style>

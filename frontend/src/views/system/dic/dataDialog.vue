@@ -180,12 +180,12 @@ const openDialog = (dictType: any) => {
 	getDataList();
 };
 
-// 获取字典数据列表
+// 获取字典数据列表（含禁用数据，管理页面需看到全部）
 const getDataList = () => {
 	state.loading = true;
-	useDictDataApi().getByType(state.dictType.dict_type)
+	useDictDataApi().getList({ dict_type: state.dictType.dict_type, page_size: 1000 })
 		.then(res => {
-			state.tableData = res.data || [];
+			state.tableData = res.data?.items || [];
 		})
 		.catch(error => {
 			ElMessage.error(error.message || '获取字典数据失败');

@@ -64,7 +64,8 @@ watch(
 .perf-console {
 	display: flex;
 	flex-direction: column;
-	height: 100%;
+	flex: 1;
+	min-height: 0;
 	border: 1px solid #2a2a3a;
 	border-radius: 6px;
 	overflow: hidden;
@@ -98,18 +99,23 @@ watch(
 		background: #0d0d1a;
 		overflow-x: auto;
 		overflow-y: auto;
-		padding: 12px 16px;
+		padding: 8px 12px 28px;
 		font-family: 'Ubuntu Mono', 'DejaVu Sans Mono', 'Liberation Mono',
 			'WenQuanYi Micro Hei Mono', 'Noto Sans Mono CJK SC',
 			'Courier New', monospace;
-		font-size: 13.5px;
-		line-height: 1.8;
+		font-size: 12px;
+		line-height: 1.45;
+		letter-spacing: 0;
+
+		// 滚动条轨道与内容背景一致，不露白
+		scrollbar-color: rgba(255, 255, 255, 0.18) #0d0d1a; // Firefox
+		scrollbar-width: thin;
 	}
 }
 
 .console-line {
 	display: flex;
-	gap: 12px;
+	gap: 8px;
 	white-space: nowrap;
 
 	.log-time {
@@ -119,7 +125,7 @@ watch(
 	}
 
 	.log-text {
-		/* 不换行，配合外层 overflow-x: auto 横向滚动 */
+		white-space: pre; /* 保留 \n 换行（多行命令），配合外层 overflow-x: auto 横向滚动 */
 	}
 
 	&.log-info    .log-text { color: #c8d0e0; }
@@ -132,5 +138,23 @@ watch(
 	color: #5f6b7c;
 	text-align: center;
 	padding: 40px 0;
+}
+</style>
+
+<style>
+/* webkit 滚动条：scoped 样式对伪元素选择器不可靠，此处用全局覆盖 */
+.perf-console__body::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+.perf-console__body::-webkit-scrollbar-track {
+	background: #0d0d1a;
+}
+.perf-console__body::-webkit-scrollbar-thumb {
+	background: rgba(255, 255, 255, 0.18);
+	border-radius: 3px;
+}
+.perf-console__body::-webkit-scrollbar-thumb:hover {
+	background: rgba(255, 255, 255, 0.32);
 }
 </style>

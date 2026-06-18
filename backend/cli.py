@@ -377,7 +377,7 @@ try:
     backend_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
     sys.path.insert(0, backend_path)
     
-    # 导入所有模块的 model.py（只导入模块，不导入具体类）
+    # 导入所有模块的 model.py（请注意，只导入模块，不导入具体类，严格执行）
     # 系统模块
     from app.api.v1.system.user import model as user_model
     from app.api.v1.system.role import model as role_model
@@ -404,6 +404,11 @@ try:
     from app.api.v1.precision_test import model as precision_test_model
     from app.api.v1.desktop_automation import model as desktop_automation_model
     from app.api.v1.miniprogram_automation import model as miniprogram_automation_model
+    from app.api.v1.performance.config import model as performance_config_model
+    from app.api.v1.performance.files import model as performance_files_model
+    from app.api.v1.performance.report import model as performance_report_model
+    from app.api.v1.performance.scenario import model as performance_scenario_model
+    from app.api.v1.performance.scheduler import model as performance_scheduler_model
     
     print(f"成功导入 {len(target_metadata.tables)} 个表")
     

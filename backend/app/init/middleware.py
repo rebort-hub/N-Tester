@@ -7,6 +7,7 @@ from loguru import logger
 
 from app.corelibs import g
 from app.utils.common import get_str_uuid
+from app.utils.context import AppTraceId
 from app.middleware.log_middleware import LogMiddleware
 
 
@@ -20,6 +21,7 @@ def init_middleware(app: FastAPI):
     async def intercept(request: Request, call_next):
         """HTTP请求拦截中间件"""
         g.trace_id = get_str_uuid()
+        AppTraceId.set(g.trace_id)
         start_time = time.time()
         remote_addr = request.headers.get("X-Real-IP", request.client.host)
         logger.info(f"访问记录:IP:{remote_addr}-method:{request.method}-url:{request.url}")

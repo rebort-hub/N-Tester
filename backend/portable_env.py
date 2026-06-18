@@ -1,13 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Windows / 便携目录部署：在加载 pydantic Configs 之前读取同包目录上级的 config.yaml，
-并写入 os.environ，与现有 .env / 环境变量命名保持一致。
-
-查找 config.yaml 顺序：
-1. 环境变量 NT_PORTABLE_ROOT 指向的目录（start.bat 会设置）
-2. 当前工作目录
-3. backend 的上一级目录（仓库根或便携根）
+Windows ，backend 的上一级目录（仓库根或便携根）
 """
 from __future__ import annotations
 
