@@ -16,9 +16,9 @@
 ---
 ## 线上体验地址
 React版本：
-http://106.54.166.76
+http://www.ntesterc.com
 Vue3版本
-http://39.96.43.109/#/auth/login
+http://rebort.ntesterc.com
 用户：admin  密码：123456
 
 ## 🌈 项目介绍
