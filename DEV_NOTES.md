@@ -489,7 +489,7 @@ python scripts/cli.py init-db
 
 | 类型 | 规范 | 示例 |
 |------|------|------|
-| 模块目录 | `snake_case` | `api_testing/`, `web_management/` |
+| 模块目录 | `snake_case` | `api_automation/`, `web_management/` |
 | Python 文件 | `snake_case.py` | `model.py`, `base_crud.py` |
 | 数据库表名 | `snake_case`（复数） | `api_projects`, `my_features` |
 
@@ -507,7 +507,7 @@ python scripts/cli.py init-db
 
 ### API 路由
 
-- 路径全小写 + 下划线或连字符：`/api_testing`、`/ssl-certificates`
+- 路径全小写 + 下划线或连字符：`/api_automation`、`/ssl-certificates`
 - 资源集合用复数：`/projects`、`/users`
 - 操作用 HTTP 动词：`GET`/`POST`/`PUT`/`DELETE`
 - 特殊操作用 `POST /{id}/action`：`/test_suites/{id}/execute`
@@ -536,7 +536,7 @@ current_user = Depends(require_api_permission("module:resource:action"))
 current_user = Depends(require_any_api_permission("module:admin:op", "module:user:op"))
 ```
 
-权限字符串格式：`模块:资源:操作`，例如 `business:user:list`、`api_testing:project:delete`。
+权限字符串格式：`模块:资源:操作`，例如 `business:user:list`、`api_automation:project:delete`。
 
 ### 数据权限（跨部门/租户场景）
 

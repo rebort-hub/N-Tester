@@ -2897,17 +2897,18 @@ class ApiAutomationService:
         env_id: int,
         user_id: int,
         request_ctx: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        """将脚本导出的变量写入环境；__request__ 回写到 request_ctx。"""
+    ) -> List[str]:
+        """将脚本导出的变量写入环境；__request__ 回写到 request_ctx。返回失败信息列表。"""
+        errors: List[str] = []
         if not exported:
-            return
+            return errors
         for key, value in exported.items():
             if key == "__request__":
                 if isinstance(value, dict) and isinstance(request_ctx, dict):
                     request_ctx.clear()
                     request_ctx.update(value)
                 continue
-            await ApiAutomationService._pre_set_var(
+            set_res = await ApiAutomationService._pre_set_var(
                 db,
                 {
                     "name": key,
@@ -2917,6 +2918,9 @@ class ApiAutomationService:
                 env_id,
                 user_id,
             )
+            if isinstance(set_res, dict) and set_res.get("status") != 1:
+                errors.append(str(set_res.get("message") or f"变量 {key} 写入失败"))
+        return errors
 
     @staticmethod
     async def _op_run_script(
@@ -2956,12 +2960,15 @@ class ApiAutomationService:
                 "output": run_res.output or "",
                 "language": language,
             }
-        await ApiAutomationService._apply_exported_vars(
+        write_errs = await ApiAutomationService._apply_exported_vars(
             db, run_res.vars or {}, env_id, user_id, request_ctx=request_ctx
         )
+        msg = f"{phase}操作-自定义脚本成功（{language}）"
+        if write_errs:
+            msg = f"{msg}；变量写入告警：{'; '.join(write_errs[:3])}"
         return {
-            "status": 1,
-            "message": f"{phase}操作-自定义脚本成功（{language}）",
+            "status": 1 if not write_errs else 0,
+            "message": msg,
             "type": op.get("type"),
             "output": (run_res.output or "")[:500],
             "vars": {k: v for k, v in (run_res.vars or {}).items() if k != "__request__"},
@@ -3262,12 +3269,14 @@ class ApiAutomationService:
             value = data.get("value", "")
             message = ""
             if env_type == 1:
+                if not env_id:
+                    return {"status": 0, "message": f"前置操作-设置环境变量：{name} 失败，原因：未选择环境"}
+                # 与 _complete_var / _load_script_env_maps 一致：按 env_id 读写，不限制创建人
                 env_row = (
                     await db.execute(
                         select(ApiEnvironmentModel).where(
                             ApiEnvironmentModel.id == env_id,
                             ApiEnvironmentModel.enabled_flag == 1,
-                            ApiEnvironmentModel.created_by == user_id,
                         )
                     )
                 ).scalar_one_or_none()
@@ -3276,7 +3285,7 @@ class ApiAutomationService:
                 vars_list = list(env_row.variable or [])
                 found = False
                 for item in vars_list:
-                    if item.get("name") == name:
+                    if isinstance(item, dict) and ApiAutomationService._normalize_var_name(item.get("name")) == ApiAutomationService._normalize_var_name(name):
                         item["value"] = value
                         found = True
                         break
@@ -3487,12 +3496,17 @@ class ApiAutomationService:
             target_name = data.get("value", "")
 
             if env_type == 1:
+                if not env_id:
+                    return {
+                        "status": 0,
+                        "message": f"后置操作-提取目标值：{data.get('name')} 失败，原因是：未选择环境",
+                    }
+                # 与读取路径一致：按 env_id 写入，不限制环境创建人
                 env_row = (
                     await db.execute(
                         select(ApiEnvironmentModel).where(
                             ApiEnvironmentModel.id == env_id,
                             ApiEnvironmentModel.enabled_flag == 1,
-                            ApiEnvironmentModel.created_by == user_id,
                         )
                     )
                 ).scalar_one_or_none()
@@ -3504,7 +3518,7 @@ class ApiAutomationService:
                 vars_list = list(env_row.variable or [])
                 found = False
                 for item in vars_list:
-                    if item.get("name") == target_name:
+                    if isinstance(item, dict) and ApiAutomationService._normalize_var_name(item.get("name")) == ApiAutomationService._normalize_var_name(target_name):
                         item["value"] = value
                         found = True
                         break
@@ -4120,12 +4134,15 @@ class ApiAutomationService:
                             },
                         )
                         if run_res.success:
-                            await ApiAutomationService._apply_exported_vars(
+                            write_errs = await ApiAutomationService._apply_exported_vars(
                                 db, run_res.vars or {}, int(env_id or 0), user_id, request_ctx=request_ctx
                             )
+                            msg = f"{label}：执行通过（{language}）"
+                            if write_errs:
+                                msg = f"{msg}；变量写入告警：{'; '.join(write_errs[:3])}"
                             results.append({
-                                "status": 1,
-                                "message": f"{label}：执行通过（{language}）",
+                                "status": 1 if not write_errs else 0,
+                                "message": msg,
                                 "type": t,
                                 "language": language,
                                 "output": (run_res.output or "")[:500],
@@ -4154,6 +4171,24 @@ class ApiAutomationService:
         return results
 
     @staticmethod
+    def _json_request_kwargs(body: Any, headers: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        JSON 请求体发送：
+        - body 为 str 时按原文 data 发送（与签名脚本 request.raw_body / request.body 一致）
+        - body 为对象时走 requests 的 json= 序列化
+        """
+        hdrs = dict(headers or {})
+        if isinstance(body, str):
+            if not any(str(k).lower() == "content-type" for k in hdrs.keys()):
+                hdrs["Content-Type"] = "application/json; charset=utf-8"
+            return {"headers": hdrs, "data": body.encode("utf-8")}
+        if body is None:
+            if not any(str(k).lower() == "content-type" for k in hdrs.keys()):
+                hdrs["Content-Type"] = "application/json; charset=utf-8"
+            return {"headers": hdrs, "data": b"{}"}
+        return {"headers": hdrs, "json": body}
+
+    @staticmethod
     async def _send_request(method: int, url: str, headers: Dict[str, Any], params: Dict[str, Any], body_type: int, body: Any,
                             form_data: Dict[str, Any], form_urlencoded: Dict[str, Any], file_paths: List[str], config: Dict[str, Any],
                             auth: Any = None) -> Dict[str, Any]:
@@ -4165,8 +4200,11 @@ class ApiAutomationService:
             if method == 1:
                 r = requests.get(url, headers=headers, params=params, **common)
             elif method == 2:
-                if body_type in (1, 2):
-                    r = requests.post(url, headers=headers, params=params, json=(body if body_type == 2 else {}), **common)
+                if body_type == 1:
+                    r = requests.post(url, headers=headers, params=params, **common)
+                elif body_type == 2:
+                    jk = ApiAutomationService._json_request_kwargs(body, headers)
+                    r = requests.post(url, params=params, **jk, **common)
                 elif body_type == 3:
                     r = requests.post(url, headers=headers, params=params, data=form_data, **common)
                 elif body_type == 4:
@@ -4177,13 +4215,16 @@ class ApiAutomationService:
                         files.append(("file", (p.split("/")[-1], open(p, "rb"), "application/octet-stream")))
                     r = requests.request("POST", url=url, headers=headers, params=params, files=files, data={}, **common)
                 else:
-                    r = requests.post(url, headers=headers, params=params, json=body, **common)
+                    jk = ApiAutomationService._json_request_kwargs(body, headers)
+                    r = requests.post(url, params=params, **jk, **common)
             elif method == 3:
-                r = requests.put(url, headers=headers, params=params, json=body, **common)
+                jk = ApiAutomationService._json_request_kwargs(body, headers)
+                r = requests.put(url, params=params, **jk, **common)
             elif method == 4:
                 r = requests.delete(url, headers=headers, params=params, **common)
             elif method == 5:
-                r = requests.patch(url, headers=headers, params=params, json=body, **common)
+                jk = ApiAutomationService._json_request_kwargs(body, headers)
+                r = requests.patch(url, params=params, **jk, **common)
             elif method == 6:
                 r = requests.options(url, headers=headers, params=params, **common)
             else:
@@ -4258,13 +4299,24 @@ class ApiAutomationService:
         common = await ApiAutomationService._load_common_params_by_api(db, api_id=api_id or None)
         req = ApiAutomationService.apply_common_params_to_req(req, common)
 
-        # 可被前置脚本改写的请求上下文
+        # 可被前置脚本改写的请求上下文（含 raw_body，兼容 Apifox/签名脚本）
+        _body_for_ctx = req.get("body")
+        if isinstance(_body_for_ctx, str):
+            _raw_body = _body_for_ctx
+        elif _body_for_ctx is None:
+            _raw_body = ""
+        else:
+            try:
+                _raw_body = json.dumps(_body_for_ctx, ensure_ascii=False, separators=(",", ":"))
+            except Exception:
+                _raw_body = str(_body_for_ctx)
         request_ctx: Dict[str, Any] = {
             "url": body.get("url") or req.get("url") or "",
             "method": req.get("method"),
             "header": req.get("header"),
             "params": req.get("params"),
-            "body": req.get("body"),
+            "body": _body_for_ctx,
+            "raw_body": _raw_body,
             "body_type": req.get("body_type"),
             "form_data": req.get("form_data"),
             "form_urlencoded": req.get("form_urlencoded"),
@@ -4293,6 +4345,10 @@ class ApiAutomationService:
         for k in ("header", "params", "body", "body_type", "form_data", "form_urlencoded", "file_path", "config", "method", "cookies"):
             if k in request_ctx and request_ctx.get(k) is not None:
                 req[k] = request_ctx.get(k)
+        # 脚本改了 body 时同步 raw_body，供排查；发送仍以 body 为准
+        if "body" in request_ctx and request_ctx.get("body") is not None:
+            b = request_ctx.get("body")
+            request_ctx["raw_body"] = b if isinstance(b, str) else json.dumps(b, ensure_ascii=False, default=str)
 
         raw_url = request_ctx.get("url") or body.get("url") or req.get("url") or ""
         url = await ApiAutomationService.handle_var(db, env_id, raw_url)

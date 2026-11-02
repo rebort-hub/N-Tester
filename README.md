@@ -292,7 +292,6 @@ frontend/src/
 │   ├── projects/           # 项目管理
 │   ├── testing/            # 测试能力
 │   │   ├── api-automation/ # 接口自动化 / 脚本中心 / 代码生成
-│   │   ├── api-testing/    # 接口测试
 │   │   ├── performance/    # 性能测试
 │   │   ├── ui-automation/  # UI 自动化
 │   │   ├── app-management/ # App 自动化
