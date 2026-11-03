@@ -5,7 +5,7 @@ from fastapi import FastAPI
 
 from app.api.v1 import router as v1_router
 from app.api.v1.Ntesterc_module.Ntesterc_api.mock_controller import router as mock_router
-from config import config
+from app.config.setting import config
 
 
 def init_router(app: FastAPI):

@@ -12,7 +12,7 @@ from sqlalchemy import select, update, delete, func, and_, text, bindparam
 from app.utils.context import AppTraceId
 
 if TYPE_CHECKING:
-    from app.infra.db.sqlalchemy import Base
+    from app.core.database import Base
 
 ModelType = TypeVar("ModelType", bound="Base")
 

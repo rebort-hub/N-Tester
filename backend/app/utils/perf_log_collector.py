@@ -321,8 +321,8 @@ async def collect_jmeter_log(
         exec_machine_ip:       执行机 IP（分布式=Master，单机=单机压力机）
         exec_machine_ssh_port: 执行机 SSH 端口
     """
-    from app.infra.db import get_redis_pool
-    from app.infra.db.sqlalchemy import async_session_factory
+    from app.core.redis import get_redis_pool
+    from app.core.database import async_session_factory
     from app.core.base_crud import BaseCRUD
     from app.api.v1.Ntesterc_module.Ntesterc_performance.scenario.model import PerfScenarioModel
 
@@ -656,7 +656,7 @@ async def collect_jmeter_log(
     if not process_running:
         _remove_job(scenario_id)
         try:
-            from app.infra.db import get_redis_pool
+            from app.core.redis import get_redis_pool
             _redis = get_redis_pool().get_redis()
             await _redis.delete(
                 _log_key(scenario_id), _offset_key(scenario_id),

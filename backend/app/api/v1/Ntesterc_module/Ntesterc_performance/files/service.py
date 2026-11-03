@@ -20,7 +20,7 @@ from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.base_crud import BaseCRUD
-from app.infra.storage.minio import MinioClient
+from app.core.storage.minio import MinioClient
 from app.utils.oper_shell import ShellOperationUtils, _is_ssh_conn_error
 from app.utils.oper_jmx import extract_jmx_thread_config, calc_jmx_estimated_duration
 from app.utils.crypto import decrypt_field
@@ -156,10 +156,10 @@ async def _get_allowed_extensions(db: AsyncSession) -> set:
     TTL 300 秒，字典变更后下次请求自动刷新。
     Redis 不可用时自动降级为直接查库。
     """
-    from app.infra.db import get_redis_pool
+    from app.core.redis import get_redis_pool
     from app.api.v1.system.dict.crud import DictDataCRUD
     from app.api.v1.system.dict.service import DICT_CACHE_KEY_PREFIX
-    from config import config
+    from app.config.setting import config
 
     cache_key = f"{DICT_CACHE_KEY_PREFIX}perf_file_type"
     cache_ttl = 300
@@ -225,7 +225,7 @@ class PerfFileService:
         Returns:
             Dict: {'id': 新建文件记录的 ID}
         """
-        from config import config
+        from app.config.setting import config
 
         await _validate_extension(file.filename, self.db)
 
@@ -282,7 +282,7 @@ class PerfFileService:
               - upload_url: 有效期 30 分钟的预签名 PUT URL
               - object_key: MinIO 对象路径，confirm 时用于防篡改校验
         """
-        from config import config
+        from app.config.setting import config
         # 校验文件拓展名
         await _validate_extension(data.file_name, self.db)
 
@@ -344,7 +344,7 @@ class PerfFileService:
         # JMX 大文件：从 MinIO 下载后解析线程组配置缓存（confirm 时文件已确实存在）
         if obj.file_type == 'jmx':
             try:
-                from config import config as app_config
+                from app.config.setting import config as app_config
                 jmx_bytes = await MinioClient.get_object_bytes(app_config.MINIO_BUCKET, obj.object_key)
                 update_data['parsed_thread_config'] = extract_jmx_thread_config(jmx_bytes)
             except Exception:
@@ -367,7 +367,7 @@ class PerfFileService:
         Returns:
             Dict: {upload_url, object_key}
         """
-        from config import config
+        from app.config.setting import config
 
         obj = await self.file_crud.get_by_id_crud(data.file_id)
         if not obj or not obj.enabled_flag:
@@ -585,7 +585,7 @@ class PerfFileService:
             HTTPException 404: 文件不存在
             HTTPException 400: 扩展名不合法 / 文件超过 100MB
         """
-        from config import config
+        from app.config.setting import config
 
         obj = await self.file_crud.get_by_id_crud(file_id)
         if not obj or not obj.enabled_flag:
@@ -900,7 +900,7 @@ class DistributeService:
         通过在 Master 上轮询 Slave 端文件大小追踪传输进度。
         平台机全程不传输文件数据，只发出 SSH 命令。
         """
-        from config import config as _cfg
+        from app.config.setting import config as _cfg
         import base64 as _b64
 
         user = (credential or {}).get("ssh_user") or _cfg.SSH_DEFAULT_USER
@@ -1213,7 +1213,7 @@ class DistributeService:
 
             # ── 4. 测试 Master SSH 连接，保留连接供后续复用 ──
             if master:
-                from config import config as _cfg
+                from app.config.setting import config as _cfg
                 _kp = _cfg.PLATFORM_SSH_KEY_PATH
                 auth_method = "key" if _kp and os.path.exists(_kp) else "password"
                 yield evt({"type": "master", "status": "connecting",
@@ -1582,7 +1582,7 @@ class DistributeService:
 
             # ── 4. 测试 Master SSH 连接，保留连接供后续复用 ──
             if master:
-                from config import config as _cfg
+                from app.config.setting import config as _cfg
                 _kp = _cfg.PLATFORM_SSH_KEY_PATH
                 auth_method = "key" if _kp and os.path.exists(_kp) else "password"
                 yield evt({"type": "master", "status": "connecting",
@@ -1782,7 +1782,7 @@ class DistributeService:
             jump_host = master.ip if master else None
             jump_port = (master.ssh_port or 22) if master else 22
 
-            from config import config as _cfg
+            from app.config.setting import config as _cfg
             _kp = _cfg.PLATFORM_SSH_KEY_PATH
             auth_method = "key" if _kp and os.path.exists(_kp) else "password"
             master_credential = _build_credential(master) if master else None

@@ -10,7 +10,7 @@ from fastapi import APIRouter, Body, Depends, File, Query, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.dependencies import get_current_user_id
-from app.infra.db.sqlalchemy import get_db
+from app.core.database import get_db
 from app.api.v1.Ntesterc_module.Ntesterc_skills import service as S
 from app.api.v1.Ntesterc_module.Ntesterc_skills.execution_model import SkillExecutionEventModel, SkillExecutionJobModel, SkillExecutionArtifactModel
 from sqlalchemy import select

@@ -8,7 +8,7 @@ from uuid import uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
 from jose import JWTError, jwt
-from config import config
+from app.config.setting import config
 from app.api.v1.system.auth.schema import (
     LoginSchema,
     LoginResponseSchema,
@@ -43,7 +43,7 @@ class CaptchaService:
 
     @classmethod
     async def _redis(cls):
-        from app.infra.db import get_redis_pool
+        from app.core.redis import get_redis_pool
         pool = get_redis_pool()
         if not pool.redis:
             pool.init_by_config(config=config)

@@ -12,7 +12,7 @@ from urllib.parse import urlparse
 from playwright.async_api import async_playwright
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-from config import config as app_config
+from app.config.setting import config as app_config
 from .model import WebResultDetailModel, WebResultListModel
 
 
@@ -28,7 +28,7 @@ async def _ai_action_on_page(page, cmd: str, result_id: str, browser: int) -> tu
     """
     import base64
     import json as _json
-    from app.infra.db.sqlalchemy import async_session_factory
+    from app.core.database import async_session_factory
     from app.api.v1.Ntesterc_module.Ntesterc_ai.llm_config.model import LLMConfigModel
     from app.api.v1.Ntesterc_module.Ntesterc_intel.ai_model_service import AIModelService
     from sqlalchemy import select as _select

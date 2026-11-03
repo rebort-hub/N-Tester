@@ -8,7 +8,7 @@ from typing import Dict, Optional
 import requests
 
 from app.core.oauth.base_oauth_service import BaseOAuthService
-from config import config
+from app.config.setting import config
 
 logger = logging.getLogger(__name__)
 

@@ -1055,7 +1055,7 @@ class UIExecutionService:
         """运行测试套件（Playwright异步方式）"""
         import time
         from datetime import datetime
-        from app.infra.db.sqlalchemy import async_session
+        from app.core.database import async_session
         from .execution_engine import ExecutionManager
         
         # 记录开始时间
@@ -1175,7 +1175,7 @@ class UIExecutionService:
         from datetime import datetime
         from sqlalchemy import create_engine, update
         from sqlalchemy.orm import sessionmaker
-        from config import Configs
+        from app.config.setting import Configs
         from .model import UIExecutionModel, UITestCaseModel, UITestStepModel, UIElementModel, UIProjectModel
         from .selenium_execution_wrapper import SeleniumExecutionEngine
         
@@ -1374,7 +1374,7 @@ class UIExecutionService:
         from datetime import datetime
         from sqlalchemy import create_engine, update
         from sqlalchemy.orm import sessionmaker
-        from config import config as app_config
+        from app.config.setting import config as app_config
         from .model import UIExecutionModel
         from .sync_execution_engine import SyncExecutionEngine
         
@@ -1473,7 +1473,7 @@ class UIExecutionService:
             from datetime import datetime
             from sqlalchemy import create_engine, update
             from sqlalchemy.orm import sessionmaker
-            from config import Configs
+            from app.config.setting import Configs
             from .model import UIExecutionModel
             
             logger.info(f"线程启动: 执行ID={execution.id}, 测试用例={test_case_data['name']}")
@@ -1894,7 +1894,7 @@ class UIExecutionService:
         """运行批量测试用例（Playwright异步方式）"""
         import time
         from datetime import datetime
-        from app.infra.db.sqlalchemy import async_session
+        from app.core.database import async_session
         from .execution_engine import ExecutionManager
         
         start_time = time.time()
@@ -1980,7 +1980,7 @@ class UIExecutionService:
         from datetime import datetime
         from sqlalchemy import create_engine, update
         from sqlalchemy.orm import sessionmaker
-        from config import Configs
+        from app.config.setting import Configs
         from .model import UIExecutionModel, UITestStepModel, UIElementModel, UIProjectModel
         from .selenium_execution_wrapper import SeleniumExecutionEngine
         
@@ -3047,7 +3047,7 @@ class UIElementValidationService:
         """运行批量测试用例（Playwright异步方式）"""
         import time
         from datetime import datetime
-        from app.infra.db.sqlalchemy import async_session
+        from app.core.database import async_session
         from .execution_engine import ExecutionManager
         
         start_time = time.time()
@@ -3133,7 +3133,7 @@ class UIElementValidationService:
         from datetime import datetime
         from sqlalchemy import create_engine, update
         from sqlalchemy.orm import sessionmaker
-        from config import Configs
+        from app.config.setting import Configs
         from .model import UIExecutionModel, UITestStepModel, UIElementModel, UIProjectModel
         from .selenium_execution_wrapper import SeleniumExecutionEngine
         

@@ -77,25 +77,30 @@ def _apply_mapping(root: Path, data: Dict[str, Any]) -> None:
 
     db = data.get("database") or {}
     if isinstance(db, dict):
+        if db.get("type"):
+            os.environ["DATABASE_TYPE"] = str(db["type"]).strip().lower()
         if db.get("async_url") or db.get("sync_url"):
             if db.get("async_url"):
                 os.environ["MYSQL_DATABASE_URI"] = str(db["async_url"]).strip()
             if db.get("sync_url"):
                 os.environ["MYSQL_DATABASE_URI_SYNC"] = str(db["sync_url"]).strip()
-            # 避免分项 DB_* 与完整 URI 同时存在时，Configs 校验器用 host 覆盖 URI
-            for k in ("DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME"):
+            # 避免分项字段与完整 URI 同时存在时互相覆盖
+            for k in (
+                "DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME",
+                "DATABASE_HOST", "DATABASE_PORT", "DATABASE_USER", "DATABASE_PASSWORD", "DATABASE_NAME",
+            ):
                 os.environ.pop(k, None)
         else:
             if db.get("host"):
-                os.environ["DB_HOST"] = str(db["host"]).strip()
+                os.environ["DATABASE_HOST"] = str(db["host"]).strip()
             if db.get("port") is not None:
-                os.environ["DB_PORT"] = str(int(db["port"]))
+                os.environ["DATABASE_PORT"] = str(int(db["port"]))
             if db.get("user"):
-                os.environ["DB_USER"] = str(db["user"]).strip()
+                os.environ["DATABASE_USER"] = str(db["user"]).strip()
             if db.get("password") is not None:
-                os.environ["DB_PASSWORD"] = str(db["password"])
+                os.environ["DATABASE_PASSWORD"] = str(db["password"])
             if db.get("name"):
-                os.environ["DB_NAME"] = str(db["name"]).strip()
+                os.environ["DATABASE_NAME"] = str(db["name"]).strip()
 
     redis = data.get("redis") or {}
     if isinstance(redis, dict) and redis.get("uri"):

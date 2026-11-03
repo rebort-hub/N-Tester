@@ -15,7 +15,7 @@ from sqlalchemy.orm import selectinload
 from .model import AppDevice, AppDeviceLog, AppDeviceInstall
 from app.common.response import success_response, error_response
 from app.utils.common import get_current_time_str
-from config import config
+from app.config.setting import config
 
 
 class DeviceService:
@@ -341,7 +341,7 @@ class DeviceService:
                 return {"success": False, "message": "该设备正在使用中"}
             
             # 生成控制链接
-            from config import config
+            from app.config.setting import config
             device_url = f"{config.DEVICE_URL}/#!action=stream&udid={device.device_id}&player=mse&ws=ws%3A%2F%2F{config.IP}%3A8000%2F%3Faction%3Dproxy-adb%26remote%3Dtcp%253A8886%26udid%3D{device.device_id}"
             file_url = f"{config.DEVICE_URL}/#!action=list-files&udid={device.device_id}&path=%2Fsdcard"
             

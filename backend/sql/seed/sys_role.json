@@ -1,0 +1,53 @@
+[
+  {
+    "role_name": "超级管理员",
+    "role_key": "admin",
+    "role_sort": 0,
+    "data_scope": 4,
+    "status": 1,
+    "remark": "超级管理员角色，拥有所有权限",
+    "id": 1,
+    "creation_date": "2026-01-31 18:06:08",
+    "created_by": null,
+    "updation_date": "2026-04-30 11:18:45",
+    "updated_by": 1,
+    "enabled_flag": 1,
+    "trace_id": null,
+    "created_at": "2026-03-19 16:00:51",
+    "updated_at": "2026-04-30 11:18:46"
+  },
+  {
+    "role_name": "普通角色",
+    "role_key": "user",
+    "role_sort": 0,
+    "data_scope": 4,
+    "status": 1,
+    "remark": null,
+    "id": 16,
+    "creation_date": "2026-02-04 18:21:02",
+    "created_by": 1,
+    "updation_date": "2026-03-06 11:39:09",
+    "updated_by": 1,
+    "enabled_flag": 1,
+    "trace_id": null,
+    "created_at": "2026-02-04 18:21:03",
+    "updated_at": "2026-03-06 11:39:10"
+  },
+  {
+    "role_name": "管理员",
+    "role_key": "admin1",
+    "role_sort": 0,
+    "data_scope": 4,
+    "status": 1,
+    "remark": null,
+    "id": 17,
+    "creation_date": "2026-02-04 18:39:48",
+    "created_by": 1,
+    "updation_date": "2026-02-04 18:39:48",
+    "updated_by": 1,
+    "enabled_flag": 1,
+    "trace_id": null,
+    "created_at": "2026-02-04 18:39:48",
+    "updated_at": "2026-02-04 18:39:48"
+  }
+]

@@ -41,7 +41,7 @@ class MinioClient:
     def get_client(cls) -> Minio:
         """获取 Minio 客户端单例（懒加载，读 config.py 中的 MINIO_* 配置）。"""
         if cls._client is None:
-            from config import config
+            from app.config.setting import config
             http_client = urllib3.PoolManager(
                 timeout=urllib3.Timeout(connect=cls._CONNECT_TIMEOUT, read=cls._READ_TIMEOUT),
                 retries=urllib3.Retry(total=1, backoff_factor=0.2),
@@ -193,7 +193,7 @@ class MinioClient:
         "重建连接池后重试"，避免偶发的连接失效导致整次下载失败。
         若异常信息中已包含 "Response code:"，说明边缘代理/服务端已经明确
         响应（如 Cloudflare WAF 403），并非连接层故障，重试没有意义，直接
-        抛出，逻辑与 app.bootstrap.minio.init_minio 保持一致。
+        抛出，逻辑与 app.core.register.minio.init_minio 保持一致。
         """
         def _get():
             response = cls.get_client().get_object(bucket, object_key)

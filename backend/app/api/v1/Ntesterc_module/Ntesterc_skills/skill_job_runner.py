@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.Ntesterc_module.Ntesterc_skills.execution_model import SkillExecutionArtifactModel, SkillExecutionEventModel, SkillExecutionJobModel
 from app.api.v1.Ntesterc_module.Ntesterc_skills.model import ProjectSkillModel
-from app.infra.db import sqlalchemy as db_sa
+from app.core import database as db_sa
 
 
 async def _next_event_seq(db: AsyncSession, job_id: int) -> int:

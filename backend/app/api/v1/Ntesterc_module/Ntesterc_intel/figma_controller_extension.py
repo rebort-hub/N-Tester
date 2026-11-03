@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 import logging
 
-from app.infra.db.sqlalchemy import get_db
+from app.core.database import get_db
 from app.core.dependencies import get_current_user_id
 from app.common.response import success_response, error_response
 
@@ -46,7 +46,7 @@ async def extract_figma_with_mode(
         task_id: 任务ID，用于查询进度
     """
     try:
-        from app.infra.db.sqlalchemy import async_session_factory
+        from app.core.database import async_session_factory
         
         # 验证提取模式
         if extraction_mode not in ['simple', 'complete']:

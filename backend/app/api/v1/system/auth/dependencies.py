@@ -5,7 +5,7 @@
 from typing import Optional
 from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.infra.db.sqlalchemy import get_db
+from app.core.database import get_db
 from app.api.v1.system.auth.service import AuthService
 from app.api.v1.system.user.crud import UserCRUD
 from app.core.api_permission import ApiPermission, check_permission

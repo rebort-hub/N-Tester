@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from sqlalchemy import select
-from app.infra.db.sqlalchemy import async_session
+from app.core.database import async_session
 
 from .airtest_common import (
     SMS_DEVICE_BY_TEST_DEVICE,

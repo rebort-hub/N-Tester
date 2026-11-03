@@ -51,7 +51,7 @@ N-Tester AI 全栈测试平台是一个面向企业级应用的现代化智能�
 |-----------|---------|---------|
 | Python    | < 3.13  | 后端运行环境  |
 | Node.js   | 20.0 | 前端构建环境  |
-| MySQL     | 8.0.23  | 主数据库    |
+| MySQL / PostgreSQL / SQLite | 8.0+ / 14+ / 3 | 主数据库（`.env` 中 `DATABASE_TYPE` 切换） |
 | Redis     | 6.0.9   | 缓存和任务队列 |
 
 ### 后端技术栈
@@ -66,7 +66,7 @@ N-Tester AI 全栈测试平台是一个面向企业级应用的现代化智能�
 | Redis | 5.0.4 | 缓存和消息队列 |
 | Loguru | 0.6.0 | 日志系统 |
 | python-jose | 3.3.0 | JWT 认证 |
-| asyncmy | 0.2.9 | 异步 MySQL 驱动 |
+| aiomysql / asyncpg / aiosqlite | — | 异步数据库驱动（按方言） |
 
 ### 前端技术栈
 
@@ -216,50 +216,64 @@ N-Tester AI 全栈测试平台
 ```
 backend/
 ├── main.py                 # FastAPI 入口（uvicorn）
-├── config.py               # pydantic_settings，读取根目录 .env
 ├── celery_app.py           # Celery -A 入口
 ├── alembic.ini
-├── run_win.bat / run_linux.sh
-├── .env / .env.example
-├── requirements.txt
-├── requirements-windows.txt
+├── .env / .env.example     # 环境配置（DATABASE_TYPE 等）
+├── pyproject.toml          # 依赖真源（uv sync）
+├── requirements*.txt       # pip / Docker 兼容
 │
 ├── app/
+│   ├── config/             # 配置层
+│   │   ├── setting.py      # pydantic_settings（读 .env）
+│   │   ├── db_url.py       # 多方言 SQLAlchemy / Redis URL
+│   │   └── path_conf.py    # 路径常量
+│   ├── core/               # 框架内核
+│   │   ├── database.py     # SQLAlchemy 引擎 / Session / create_all
+│   │   ├── redis.py        # Redis 连接池
+│   │   ├── storage/        # MinIO 等对象存储
+│   │   ├── register/       # 启动装配：路由、CORS、限流、调度…
+│   │   ├── middlewares.py  # 请求日志 / 追踪中间件
+│   │   ├── exceptions.py   # 全局异常处理
+│   │   ├── db_base.py      # ORM Base
+│   │   └── …               # CRUD/Model/Schema 基类、权限、日志、OAuth
+│   ├── common/             # 统一响应、常量、枚举
+│   ├── utils/              # 通用工具
+│   ├── scripts/            # 应用内脚本（如 initialize 自举建表+种子）
+│   ├── alembic/            # 迁移脚本（versions/）；模型自动扫描
 │   ├── api/v1/             # 业务 API（按模块分包）
 │   │   ├── system/         # 认证/用户/角色/菜单/部门/字典/日志…
-│   │   │   └── auth/       # 登录、验证码(Redis)、JWT、菜单权限
 │   │   ├── monitor/        # 在线用户、系统监控
 │   │   ├── common/         # 公共接口
 │   │   └── Ntesterc_module/
-│   │       ├── Ntesterc_api/            # 接口自动化 / 代码生成 / 脚本运行时
-│   │       ├── Ntesterc_ai/             # AI 对话、LLM 配置、用量
+│   │       ├── Ntesterc_api/            # 接口自动化
+│   │       ├── Ntesterc_ai/             # AI 对话、LLM 配置
 │   │       ├── Ntesterc_performance/    # 性能测试
-│   │       ├── Ntesterc_web/            # Web UI 自动化
-│   │       ├── Ntesterc_app/            # App 自动化
-│   │       ├── Ntesterc_project/        # 项目管理
-│   │       ├── Ntesterc_notifications/  # 通知
-│   │       ├── Ntesterc_task_scheduler/ # 定时任务 + Celery worker
-│   │       └── …                      # intel / reviews / data_factory 等
-│   ├── alembic/            # 数据库迁移脚本（versions/）
-│   ├── bootstrap/          # 启动装配：路由、CORS、中间件、限流、MinIO…
-│   ├── common/             # 统一响应、常量、枚举
-│   ├── core/               # 基类 CRUD/Model/Schema、权限、日志、OAuth
-│   ├── infra/db/           # SQLAlchemy / Redis 连接池
-│   ├── middleware/         # 请求日志等中间件
-│   ├── utils/              # 工具（含 captcha_util 等）
-│   └── static/             # 应用内静态产物（如接口执行结果）
+│   │       ├── Ntesterc_web/ / _app/    # UI / App 自动化
+│   │       ├── Ntesterc_task_scheduler/ # 定时任务 + Celery
+│   │       └── …                      # project / notifications / reviews 等
+│   └── static/             # 应用内静态产物
 │
-├── scripts/                # 运维 / 便携 / CLI（勿堆在根目录）
-│   ├── cli.py              # 库表初始化 / Alembic 命令
-│   ├── run_portable.py     # 便携版启动
-│   ├── scheduler_runner.py # 独立调度进程
-│   └── portable_env.py     # config.yaml → 环境变量
-├── sql/                    # 初始化 SQL（db_init.sql 等）
-├── deploy/                 # Dockerfile、Celery runner 镜像
-├── static/                 # 对外静态资源（swagger、tools/jacoco 等）
+├── scripts/                # 运维 CLI（勿堆在 backend 根）
+│   ├── cli.py              # init-db / seed / check / Alembic
+│   ├── sql_to_seed_json.py # MySQL dump → sql/seed/*.json
+│   └── run_portable.py / portable_env.py / …
+├── sql/
+│   ├── seed/               # 方言无关 JSON 种子（启动幂等导入）
+│   └── db_init.sql         # 历史 MySQL dump（可选参考）
+├── deploy/                 # Dockerfile、Celery runner
+├── static/                 # swagger 等对外静态资源
 ├── docs/                   # 后端开发说明
-└── tests/                  # 后端测试
+└── tests/
 ```
+
+**分层约定**
+
+| 包 | 职责 |
+|----|------|
+| `app/config` | 环境与连接串，无业务逻辑 |
+| `app/core` | 数据库/缓存/中间件/注册/基类等基础设施 |
+| `app/common` | 响应体、枚举、常量 |
+| `app/api` | 业务模块（Controller / Service / CRUD / Model / Schema **同目录**） |
 
 **单模块约定**（示例：`app/api/v1/system/user/`）：
 
@@ -267,8 +281,16 @@ backend/
 controller.py   # 路由
 service.py      # 业务
 crud.py         # 数据访问
-model.py        # ORM
+model.py        # ORM（会被 ImportUtil 自动扫描）
 schema.py       # Pydantic 入参/出参
+```
+
+**配置导入**（已取消根目录 `config.py`）：
+
+```python
+from app.config.setting import config
+# 或
+from app.config import config, BACKEND_ROOT
 ```
 
 ### 前端目录架构
@@ -501,16 +523,20 @@ docker-compose logs -f
 ##### 1. 环境准备
 
 ```bash
-# 确保已安装 Python 3.11-12、MySQL 8.0、Redis 6.0
+# 确保已安装 Python 3.11–3.12、Redis 6.0
+# 数据库任选其一：MySQL 8 / PostgreSQL 14+ / 本地 SQLite
 python --version
-mysql --version
 redis-server --version
 ```
 
-##### 2. 创建数据库
+##### 2. 创建数据库（MySQL / Postgres 需先建库；SQLite 可跳过）
 
 ```sql
+-- MySQL
 CREATE DATABASE ntester CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- PostgreSQL
+-- CREATE DATABASE ntester;
 ```
 
 ##### 3. 配置环境
@@ -521,13 +547,25 @@ cd backend
 # 复制配置文件
 cp .env.example .env
 
-# 编辑 .env 文件，修改数据库连接信息(注意，其他数据库连接配置不使用默认要改为注释）
-# MySQL 数据库配置
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=root
-DB_PASSWORD=123456
-DB_NAME=ntester
+# 编辑 .env：改 DATABASE_TYPE 即可切换方言（mysql / postgres / sqlite）
+# MySQL 示例：
+DATABASE_TYPE=mysql
+DATABASE_HOST=localhost
+DATABASE_PORT=3306
+DATABASE_USER=root
+DATABASE_PASSWORD=123456
+DATABASE_NAME=ntester
+DB_AUTO_INIT=true
+
+# PostgreSQL 示例：
+# DATABASE_TYPE=postgres
+# DATABASE_PORT=5432
+# DATABASE_USER=postgres
+# DATABASE_NAME=ntester
+
+# SQLite 示例（本地开发，无需独立库服务）：
+# DATABASE_TYPE=sqlite
+# DATABASE_NAME=ntester.db
 ```
 
 使用 pip 时需手动创建虚拟环境；使用 uv 时 `uv sync` 会自动创建 `backend/.venv`：
@@ -573,16 +611,18 @@ pip install -r requirements-windows.txt
 
 ##### 5. 初始化数据库
 
+`DB_AUTO_INIT=true`（默认）时，启动会自动：扫描模型 → 空库 `create_all` → 幂等导入 `sql/seed/*.json`。
+
 ```bash
-# 一键初始化（推荐）
-python scripts/cli.py init-db
-#或者
-uv run python scripts/cli.py init-db
+# 推荐：直接启动（自动建表 + 种子）
+python main.py
+# 或
+uv run python main.py
 
-
-# 或手动使用 Alembic
-alembic upgrade heads
-python scripts/cli.py init-data
+# 也可单独执行 CLI
+python scripts/cli.py check      # 检查连接与 DATABASE_TYPE
+python scripts/cli.py init-db    # create_all + 种子
+python scripts/cli.py seed       # 仅种子（表已有数据则跳过）
 ```
 
 ##### 6. 启动后端服务
@@ -685,25 +725,30 @@ yarn build
 
 ## 🗄️ 数据库管理
 
-### Alembic 迁移命令
+### 多方言与自举
+
+- `.env` 中 `DATABASE_TYPE=mysql|postgres|sqlite` 切换驱动与连接串（见 `app/config/setting.py`、`db_url.py`）。
+- 模型通过 `ImportUtil` 自动扫描 `model.py`，无需在 Alembic `env.py` 手写 import 列表。
+- 种子数据在 `sql/seed/*.json`（方言无关）；历史 `sql/db_init.sql` 仅作参考，可用 `scripts/sql_to_seed_json.py` 再生成。
+
+### CLI / Alembic
 
 ```bash
-# 初始化数据库（包含迁移和初始数据）
+# 空库建表 + 种子（推荐）
 python scripts/cli.py init-db
 
-# 生成迁移文件
+# 检查配置与连通性
+python scripts/cli.py check
+
+# 生成 / 应用迁移（存量库增量变更）
+python scripts/cli.py revision -m "描述信息"
+python scripts/cli.py upgrade
+
+# 或直接使用 alembic
 alembic revision --autogenerate -m "描述信息"
-
-# 执行迁移
 alembic upgrade head
-
-# 回滚迁移
 alembic downgrade -1
-
-# 查看迁移历史
 alembic history
-
-# 查看当前版本
 alembic current
 ```
 
@@ -991,7 +1036,7 @@ server {
 
 **Q: 数据库连接失败？**
 
-A: 检查 `.env` 文件中的数据库配置，确保 MySQL 服务已启动。
+A: 检查 `backend/.env` 中 `DATABASE_TYPE` 与 `DATABASE_HOST/PORT/USER/PASSWORD/NAME` 是否匹配实际库；可用 `python scripts/cli.py check` 验证。MySQL/Postgres 需先建好库；SQLite 只需可写目录。
 
 **Q: Redis 连接失败？**
 

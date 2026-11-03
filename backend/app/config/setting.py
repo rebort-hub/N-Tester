@@ -3,9 +3,11 @@
 """应用配置"""
 import os
 import typing
-from urllib.parse import quote
-from pydantic import AnyHttpUrl, Field, model_validator
+from pathlib import Path
+from pydantic import AnyHttpUrl, Field, AliasChoices, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from app.config.db_url import build_redis_url, build_sqlalchemy_url
+from app.config.path_conf import BACKEND_ROOT
 
 project_desc = """
     🎉 N-Tester2.0.1 接口文档汇总 🎉
@@ -27,7 +29,9 @@ class Configs(BaseSettings):
     STATIC_DIR: str = "static"
     GLOBAL_ENCODING: str = "utf8"
     CORS_ORIGINS: typing.List[typing.Any] = ["*"]
-    BASEDIR: str = os.path.join(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
+    BASEDIR: str = str(BACKEND_ROOT.parent)
+    ENVIRONMENT: str = Field(default="dev", validation_alias="ENVIRONMENT")
+    DB_AUTO_INIT: bool = Field(default=True, validation_alias="DB_AUTO_INIT")
 
     # ================================================= #
     # ******** 安全 / JWT *********** #
@@ -39,7 +43,6 @@ class Configs(BaseSettings):
     # ================================================= #
     # ******** Redis *********** #
     # ================================================= #
-    # 推荐：直接配置 REDIS_URI；也可填 HOST/PORT 等拆字段自动拼接
     REDIS_URI: str = Field(default="", validation_alias="REDIS_URI")
     REDIS_HOST: str = Field(default="", validation_alias="REDIS_HOST")
     REDIS_PORT: int = Field(default=6379, validation_alias="REDIS_PORT")
@@ -50,15 +53,39 @@ class Configs(BaseSettings):
     # ================================================= #
     # ******** 数据库 *********** #
     # ================================================= #
-    DB_HOST: str = Field(default="", validation_alias="DB_HOST")
-    DB_PORT: int = Field(default=3306, validation_alias="DB_PORT")
-    DB_USER: str = Field(default="", validation_alias="DB_USER")
-    DB_PASSWORD: str = Field(default="", validation_alias="DB_PASSWORD")
-    DB_NAME: str = Field(default="", validation_alias="DB_NAME")
-    # 兼容旧部署：MYSQL_DATABASE_URI / MYSQL_DATABASE_URI_SYNC
+    # mysql-3306 / postgres-5432 / sqlite（sqlite 时 DATABASE_NAME 为文件名）
+    DATABASE_TYPE: typing.Literal["mysql", "postgres", "sqlite"] = Field(
+        default="mysql",
+        validation_alias=AliasChoices("DATABASE_TYPE", "DB_TYPE"),
+    )
+    DATABASE_HOST: str = Field(
+        default="localhost",
+        validation_alias=AliasChoices("DATABASE_HOST", "DB_HOST"),
+    )
+    DATABASE_PORT: int = Field(
+        default=3306,
+        validation_alias=AliasChoices("DATABASE_PORT", "DB_PORT"),
+    )
+    DATABASE_USER: str = Field(
+        default="root",
+        validation_alias=AliasChoices("DATABASE_USER", "DB_USER"),
+    )
+    DATABASE_PASSWORD: str = Field(
+        default="",
+        validation_alias=AliasChoices("DATABASE_PASSWORD", "DB_PASSWORD"),
+    )
+    DATABASE_NAME: str = Field(
+        default="ntester",
+        validation_alias=AliasChoices("DATABASE_NAME", "DB_NAME"),
+    )
+    # 兼容旧部署：完整 URI 优先于拆字段
     DATABASE_URI: str = Field(default="", validation_alias="MYSQL_DATABASE_URI")
     DATABASE_URI_SYNC: str = Field(default="", validation_alias="MYSQL_DATABASE_URI_SYNC")
     DATABASE_ECHO: bool = False
+    POOL_SIZE: int = 10
+    MAX_OVERFLOW: int = 20
+    POOL_RECYCLE: int = 7200
+    POOL_PRE_PING: bool = True
 
     # ================================================= #
     # ******** 验证码 *********** #
@@ -93,7 +120,7 @@ class Configs(BaseSettings):
     include: typing.List[typing.Any] = [
         "app.api.v1.Ntesterc_module.Ntesterc_task_scheduler.celery_worker.tasks.common",
     ]
-    TEST_FILES_DIR: str = os.path.join(os.path.abspath(os.path.dirname(os.path.dirname(__file__))), "files")
+    TEST_FILES_DIR: str = str(BACKEND_ROOT / "files")
     task_run_pool: int = 3
     beat_db_uri: str = Field(default="", validation_alias="CELERY_BEAT_DB_URL")
 
@@ -173,8 +200,84 @@ class Configs(BaseSettings):
     SCRIPT_NATIVE_NODE: str = Field(default="", validation_alias="SCRIPT_NATIVE_NODE")
     SCRIPT_NATIVE_TIMEOUT: int = Field(default=30, validation_alias="SCRIPT_NATIVE_TIMEOUT")
 
+    # 兼容旧代码读取 DB_* 属性
+    @property
+    def DB_HOST(self) -> str:
+        return self.DATABASE_HOST
+
+    @property
+    def DB_PORT(self) -> int:
+        return self.DATABASE_PORT
+
+    @property
+    def DB_USER(self) -> str:
+        return self.DATABASE_USER
+
+    @property
+    def DB_PASSWORD(self) -> str:
+        return self.DATABASE_PASSWORD
+
+    @property
+    def DB_NAME(self) -> str:
+        return self.DATABASE_NAME
+
+    def _build_async_uri(self) -> str:
+        if self.DATABASE_TYPE == "mysql":
+            return build_sqlalchemy_url(
+                "mysql+aiomysql",
+                username=self.DATABASE_USER,
+                password=self.DATABASE_PASSWORD,
+                host=self.DATABASE_HOST,
+                port=self.DATABASE_PORT,
+                database=self.DATABASE_NAME,
+                query={"charset": "utf8mb4"},
+            )
+        if self.DATABASE_TYPE == "postgres":
+            return build_sqlalchemy_url(
+                "postgresql+asyncpg",
+                username=self.DATABASE_USER,
+                password=self.DATABASE_PASSWORD,
+                host=self.DATABASE_HOST,
+                port=self.DATABASE_PORT,
+                database=self.DATABASE_NAME,
+            )
+        name = self.DATABASE_NAME if str(self.DATABASE_NAME).endswith(".db") else f"{self.DATABASE_NAME}.db"
+        db_path = Path(name)
+        if not db_path.is_absolute():
+            db_path = BACKEND_ROOT / name
+        return f"sqlite+aiosqlite:///{db_path.as_posix()}"
+
+    def _build_sync_uri(self) -> str:
+        if self.DATABASE_TYPE == "mysql":
+            return build_sqlalchemy_url(
+                "mysql+pymysql",
+                username=self.DATABASE_USER,
+                password=self.DATABASE_PASSWORD,
+                host=self.DATABASE_HOST,
+                port=self.DATABASE_PORT,
+                database=self.DATABASE_NAME,
+                query={"charset": "utf8mb4"},
+            )
+        if self.DATABASE_TYPE == "postgres":
+            return build_sqlalchemy_url(
+                "postgresql+psycopg",
+                username=self.DATABASE_USER,
+                password=self.DATABASE_PASSWORD,
+                host=self.DATABASE_HOST,
+                port=self.DATABASE_PORT,
+                database=self.DATABASE_NAME,
+            )
+        name = self.DATABASE_NAME if str(self.DATABASE_NAME).endswith(".db") else f"{self.DATABASE_NAME}.db"
+        db_path = Path(name)
+        if not db_path.is_absolute():
+            db_path = BACKEND_ROOT / name
+        return f"sqlite:///{db_path.as_posix()}"
+
     @model_validator(mode="after")
     def build_uris(self) -> "Configs":
+        if self.DATABASE_TYPE not in ("mysql", "postgres", "sqlite"):
+            raise ValueError(f"不支持的 DATABASE_TYPE: {self.DATABASE_TYPE}，请选择 mysql / postgres / sqlite")
+
         # Redis：拆字段 → REDIS_URI
         if not str(self.REDIS_URI or "").strip():
             if not self.REDIS_HOST:
@@ -183,32 +286,34 @@ class Configs(BaseSettings):
                     "  推荐：REDIS_URI=redis://localhost:6379/4\n"
                     "  或拆字段：REDIS_HOST / REDIS_PORT / REDIS_USER / REDIS_PASSWORD / REDIS_DB"
                 )
-            user = quote(str(self.REDIS_USER or ""), safe="")
-            password = quote(str(self.REDIS_PASSWORD or ""), safe="")
-            auth = ""
-            if user or password:
-                auth = f"{user}:{password}@" if user else f":{password}@"
-            self.REDIS_URI = f"redis://{auth}{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
-
-        # MySQL：DB_* → DATABASE_URI
-        if self.DB_HOST and self.DB_USER and self.DB_NAME:
-            encoded_password = quote(self.DB_PASSWORD, safe="")
-            base = f"{self.DB_USER}:{encoded_password}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}?charset=UTF8MB4"
-            self.DATABASE_URI = f"mysql+aiomysql://{base}"
-            self.DATABASE_URI_SYNC = f"mysql+pymysql://{base}"
-            if not self.beat_db_uri:
-                self.beat_db_uri = f"mysql+pymysql://{base}"
-        elif not self.DATABASE_URI or not self.DATABASE_URI_SYNC:
-            raise ValueError(
-                "请在 .env 中配置数据库连接：\n"
-                "  推荐：DB_HOST / DB_PORT / DB_USER / DB_PASSWORD / DB_NAME\n"
-                "  兼容旧格式：MYSQL_DATABASE_URI / MYSQL_DATABASE_URI_SYNC"
+            self.REDIS_URI = build_redis_url(
+                username=str(self.REDIS_USER or ""),
+                password=str(self.REDIS_PASSWORD or ""),
+                host=self.REDIS_HOST,
+                port=self.REDIS_PORT,
+                db=self.REDIS_DB,
             )
+
+   
+        if not (self.DATABASE_URI and self.DATABASE_URI_SYNC):
+            if self.DATABASE_TYPE == "sqlite" or (self.DATABASE_HOST and self.DATABASE_USER and self.DATABASE_NAME):
+                self.DATABASE_URI = self._build_async_uri()
+                self.DATABASE_URI_SYNC = self._build_sync_uri()
+            else:
+                raise ValueError(
+                    "请在 .env 中配置数据库连接：\n"
+                    "  DATABASE_TYPE=mysql|postgres|sqlite\n"
+                    "  DATABASE_HOST / DATABASE_PORT / DATABASE_USER / DATABASE_PASSWORD / DATABASE_NAME\n"
+                    "  兼容旧字段：DB_* 或 MYSQL_DATABASE_URI*"
+                )
+
+        if not self.beat_db_uri:
+            self.beat_db_uri = self.DATABASE_URI_SYNC
         return self
 
     model_config = SettingsConfigDict(
         case_sensitive=True,
-        env_file=".env",
+        env_file=str(BACKEND_ROOT / ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )

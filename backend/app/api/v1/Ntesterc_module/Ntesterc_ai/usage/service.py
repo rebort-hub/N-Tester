@@ -13,7 +13,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logger import logger
-from app.infra.db.sqlalchemy import async_session
+from app.core.database import async_session
 from app.api.v1.Ntesterc_module.Ntesterc_ai.usage.model import LLMUsageLogModel
 
 _table_ensured = False

@@ -26,7 +26,7 @@ if Path.cwd().resolve() != _BACKEND_ROOT:
 from loguru import logger
 from sqlalchemy import select, update
 
-from app.infra.db.sqlalchemy import async_session_factory
+from app.core.database import async_session_factory
 from app.api.v1.Ntesterc_module.Ntesterc_skills.execution_model import (
     SkillExecutionArtifactModel,
     SkillExecutionEventModel,

@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 import json
 import asyncio
-from app.infra.db.sqlalchemy import get_db
+from app.core.database import get_db
 from app.api.v1.system.auth.dependencies import get_current_user
 from app.common.response import success_response, error_response
 from .schema import (

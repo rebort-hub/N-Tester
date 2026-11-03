@@ -22,7 +22,7 @@ except ImportError:  # pragma: no cover
 def _config_str(*attr_names: str) -> str:
     """优先从 config（.env / pydantic-settings）读取，子进程 import config 时会重新加载 .env"""
     try:
-        from config import config
+        from app.config.setting import config
 
         for name in attr_names:
             v = getattr(config, name, None)
@@ -54,7 +54,7 @@ def get_public_base_url() -> str:
     if env_u and str(env_u).strip():
         return str(env_u).strip().rstrip("/")
     try:
-        from config import config
+        from app.config.setting import config
 
         bu = getattr(config, "BASE_URL", None)
         if bu:

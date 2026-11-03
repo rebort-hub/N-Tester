@@ -5,7 +5,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infra.db.sqlalchemy import get_db
+from app.core.database import get_db
 from app.common.response import success_response
 from app.api.v1.system.code_generator.schema import (
     GenerateCodeRequest,

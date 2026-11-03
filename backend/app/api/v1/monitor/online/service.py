@@ -8,8 +8,8 @@ from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, func, desc
 
-from app.infra.db.sqlalchemy import get_db
-from app.infra.db import get_redis_pool
+from app.core.database import get_db
+from app.core.redis import get_redis_pool
 from app.api.v1.system.user.model import UserModel
 from app.api.v1.monitor.online.model import OnlineUserInfo, OnlineUserStats
 from app.utils.common import parse_user_agent, get_location_by_ip
@@ -27,7 +27,7 @@ class OnlineUserService:
                             session_id: str, ip_address: str, user_agent: str) -> None:
         """添加在线用户"""
         try:
-            from config import config
+            from app.config.setting import config
             redis_pool = get_redis_pool()
             
             # 确保 Redis 已初始化
@@ -75,7 +75,7 @@ class OnlineUserService:
     async def remove_online_user(cls, user_id: int, session_id: str) -> None:
         """移除在线用户"""
         try:
-            from config import config
+            from app.config.setting import config
             redis_pool = get_redis_pool()
             if not redis_pool.redis:
                 redis_pool.init_by_config(config=config)
@@ -91,7 +91,7 @@ class OnlineUserService:
     async def update_user_activity(cls, user_id: int, session_id: str) -> None:
         """更新用户活动时间"""
         try:
-            from config import config
+            from app.config.setting import config
             redis_pool = get_redis_pool()
             if not redis_pool.redis:
                 redis_pool.init_by_config(config=config)
@@ -117,7 +117,7 @@ class OnlineUserService:
     async def get_online_users(cls, page: int = 1, page_size: int = 20) -> Dict[str, Any]:
         """获取在线用户列表"""
         try:
-            from config import config
+            from app.config.setting import config
             redis_pool = get_redis_pool()
             if not redis_pool.redis:
                 redis_pool.init_by_config(config=config)
@@ -189,7 +189,7 @@ class OnlineUserService:
     async def get_online_stats(cls) -> OnlineUserStats:
         """获取在线用户统计"""
         try:
-            from config import config
+            from app.config.setting import config
             redis_pool = get_redis_pool()
             if not redis_pool.redis:
                 redis_pool.init_by_config(config=config)
@@ -263,7 +263,7 @@ class OnlineUserService:
     async def force_offline(cls, user_id: int, session_id: str = None) -> bool:
         """强制用户下线（直接删除在线记录）"""
         try:
-            from config import config
+            from app.config.setting import config
             redis_pool = get_redis_pool()
             if not redis_pool.redis:
                 redis_pool.init_by_config(config=config)
@@ -292,7 +292,7 @@ class OnlineUserService:
     async def _update_stats(cls) -> None:
         """更新统计信息"""
         try:
-            from config import config
+            from app.config.setting import config
             redis_pool = get_redis_pool()
             if not redis_pool.redis:
                 redis_pool.init_by_config(config=config)
@@ -309,7 +309,7 @@ class OnlineUserService:
     async def cleanup_expired_users(cls) -> None:
         """清理过期的在线用户"""
         try:
-            from config import config
+            from app.config.setting import config
             redis_pool = get_redis_pool()
             if not redis_pool.redis:
                 redis_pool.init_by_config(config=config)

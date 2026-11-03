@@ -5,7 +5,7 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.infra.db.sqlalchemy import get_db
+from app.core.database import get_db
 from app.common.response import success_response, error_response
 from app.api.v1.Ntesterc_module.Ntesterc_ai.llm_config.schema import (
     LLMConfigCreateSchema,

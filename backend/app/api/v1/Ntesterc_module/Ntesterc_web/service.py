@@ -24,9 +24,9 @@ from .model import (
     WebResultDetailModel,
 )
 
-from config import config as app_config
+from app.config.setting import config as app_config
 
-from app.infra.db.sqlalchemy import async_session_factory
+from app.core.database import async_session_factory
 
 from .playwright_runner import run_web_async
 from .web_worker import run_web_task_in_process

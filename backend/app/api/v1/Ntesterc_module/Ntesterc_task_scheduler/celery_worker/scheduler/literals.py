@@ -1,5 +1,5 @@
 # coding=utf-8
-from config import config
+from app.config.setting import config
 
 DAYS = 'days'
 HOURS = 'hours'

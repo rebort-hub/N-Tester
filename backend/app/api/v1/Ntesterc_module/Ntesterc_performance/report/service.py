@@ -13,7 +13,7 @@ from fastapi import HTTPException, status
 from fastapi.responses import Response, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infra.storage.minio import MinioClient
+from app.core.storage.minio import MinioClient
 from .collector import _collect_state, _stop_requested
 from .crud import PerfReportCRUD
 from .model import PerfReportModel
@@ -190,7 +190,7 @@ class PerfReportService:
             dict: { 'report': url|None, 'log': url|None, 'jtl': url|None }
         """
         report = await self._get_or_404(report_id)
-        from config import config
+        from app.config.setting import config
         if not types:
             types = ['report', 'log', 'jtl']
         type_map = {
@@ -220,7 +220,7 @@ class PerfReportService:
         import io, zipfile
         from urllib.parse import quote
         from fastapi.responses import Response
-        from config import config
+        from app.config.setting import config
 
         report = await self._get_or_404(report_id)
         if not types:
@@ -289,7 +289,7 @@ class PerfReportService:
         report = await self._get_or_404(report_id)
 
         if log_type == 'collector':
-            from config import config
+            from app.config.setting import config
             collector_key = f'report/{report.report_code}/collector_process.log'
             try:
                 content = await MinioClient.get_object_bytes(config.MINIO_BUCKET, collector_key)
@@ -300,7 +300,7 @@ class PerfReportService:
         # console：从 jmeter-logs.zip 提取（单文件/指定文件/全部合并）
         try:
             import io as _io
-            from config import config
+            from app.config.setting import config
             log_key   = f'report/{report.report_code}/jmeter-logs.zip'
             zip_bytes = await MinioClient.get_object_bytes(config.MINIO_BUCKET, log_key)
             with zipfile.ZipFile(_io.BytesIO(zip_bytes)) as zf:
@@ -333,7 +333,7 @@ class PerfReportService:
         - 方案二：内存文件缓存，命中时 0 次 MinIO 调用
         - 方案三：DB/stat/CD 元数据缓存，首次访问后仅需 2 次 MinIO range GET 提取文件
         """
-        from config import config
+        from app.config.setting import config
         from app.utils.common import get_content_type
 
         zip_path  = f'report/{path}'
@@ -374,7 +374,7 @@ class PerfReportService:
         # ── 提取文件（同步 IO 在线程中执行） ─────────────────────────────────
         def _extract() -> tuple[bytes | None, str]:
             import time
-            from config import config as _cfg
+            from app.config.setting import config as _cfg
             client = MinioClient.get_client()
 
             # 方案三：zip 元数据缓存（stat + CD），未命中时仅读一次
@@ -498,7 +498,7 @@ class PerfReportService:
                 else:
                     # 内存字典中无条目：查 DB 判断是否已结束
                     try:
-                        from app.infra.db.sqlalchemy import async_session_factory
+                        from app.core.database import async_session_factory
                         from app.core.base_crud import BaseCRUD
                         async with async_session_factory() as db:
                             latest = await BaseCRUD(PerfReportModel, db).get_by_id_crud(report_id)
@@ -731,7 +731,7 @@ class PerfReportService:
     async def _remove_preview_objects(self, report: PerfReportModel) -> None:
         """枚举并删除 Minio report/{report_code}/ 前缀下所有对象（3个zip + 过程日志 + 预览文件）。"""
         import asyncio
-        from config import config
+        from app.config.setting import config
 
         preview_prefix = f'report/{report.report_code}/'
 

@@ -10,7 +10,7 @@ from typing import Optional, Tuple
 import paramiko
 
 from app.common import SSH_CONN_ERROR_SIGNS
-from config import config
+from app.config.setting import config
 from app.core.logger import logger
 
 

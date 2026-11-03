@@ -139,3 +139,13 @@ class RedisPool:
         return self.redis
 
 
+# 延迟初始化连接池（避免启动期强依赖）
+_redis_pool = None
+
+
+def get_redis_pool():
+    """获取 Redis 连接池（延迟初始化）。"""
+    global _redis_pool
+    if _redis_pool is None:
+        _redis_pool = RedisPool()
+    return _redis_pool

@@ -4,7 +4,7 @@
 
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.infra.db.sqlalchemy import get_db
+from app.core.database import get_db
 from app.core.dependencies import get_current_user_id
 from app.common.enums import ResponseCode
 from app.common.response import success_response, error_response

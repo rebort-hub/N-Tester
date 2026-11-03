@@ -6,8 +6,8 @@ from __future__ import annotations
 import asyncio
 import uuid
 from typing import Any, Optional
-from app.infra.db import get_redis_pool
-from config import config
+from app.core.redis import get_redis_pool
+from app.config.setting import config
 
 
 QUEUE_KEY = "task_scheduler:cmd"

@@ -13,7 +13,7 @@ from enum import Enum
 
 from app.api.v1.Ntesterc_module.Ntesterc_ai.llm_config.model import LLMConfigModel
 from sqlalchemy import select
-from app.infra.db.sqlalchemy import async_session
+from app.core.database import async_session
 
 
 try:

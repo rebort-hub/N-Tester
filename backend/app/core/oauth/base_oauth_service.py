@@ -10,9 +10,9 @@ import requests
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infra.db.sqlalchemy import async_session
+from app.core.database import async_session
 from app.api.v1.system.user.model import UserModel
-from config import config
+from app.config.setting import config
 
 logger = logging.getLogger(__name__)
 

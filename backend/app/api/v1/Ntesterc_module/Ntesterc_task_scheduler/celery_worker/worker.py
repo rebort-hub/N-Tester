@@ -9,7 +9,7 @@ from celery._state import _task_stack
 from celery.signals import setup_logging
 from celery.worker.request import Request
 
-from config import config
+from app.config.setting import config
 from app.core.local import g
 from app.core.logger import InterceptHandler, logger
 from app.utils.async_converter import AsyncIOPool

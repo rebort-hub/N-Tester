@@ -38,7 +38,7 @@ class AppManagementService:
     def _use_appium_executor() -> bool:
         """USE_APPIUM_APP_EXECUTOR=1/true（.env / config）时使用 Appium+OpenCV 执行器"""
         try:
-            from config import config
+            from app.config.setting import config
 
             s = str(getattr(config, "USE_APPIUM_APP_EXECUTOR", "") or "").strip().lower()
             if s:
@@ -50,7 +50,7 @@ class AppManagementService:
     @staticmethod
     def _appium_server_url() -> str:
         try:
-            from config import config
+            from app.config.setting import config
 
             u = str(getattr(config, "APPIUM_SERVER_URL", "") or "").strip()
             if u:
@@ -62,7 +62,7 @@ class AppManagementService:
     @staticmethod
     def _app_template_root() -> str:
         try:
-            from config import config
+            from app.config.setting import config
 
             t = str(getattr(config, "APP_TEMPLATE_ROOT", "") or "").strip()
             if t:

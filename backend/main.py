@@ -8,27 +8,41 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from app.core.logger import init_logger, logger
-from app.bootstrap.cors import init_cors
-from app.bootstrap.exception import init_exception
-from app.bootstrap.middleware import init_middleware
-from app.bootstrap.minio import init_minio
-from app.bootstrap.scheduler import init_scheduler, shutdown_scheduler, load_perf_pending_jobs
-from app.bootstrap.routers import init_router
-from app.bootstrap.mount import init_mount
-from app.bootstrap.limiter import init_limiter
-from config import config
+from app.core.register import (
+    init_cors,
+    init_exception,
+    init_middleware,
+    init_minio,
+    init_scheduler,
+    shutdown_scheduler,
+    load_perf_pending_jobs,
+    init_router,
+    init_mount,
+    init_limiter,
+)
+from app.config.setting import config
 
 
 @asynccontextmanager
 async def start_app(app: FastAPI):
     """ 注册中心 """
-    # 获取Redis连接池（延迟初始化）
-    from app.infra.db import get_redis_pool
+
+    from app.core.redis import get_redis_pool
     redis_pool_instance = get_redis_pool()
     redis_pool_instance.init_by_config(config=config)
-
+    
     init_logger()
     logger.info("日志初始化成功！！!")
+    logger.info(f"数据库类型: {config.DATABASE_TYPE}")
+
+ 
+    if config.DB_AUTO_INIT:
+        try:
+            from app.scripts.initialize import InitializeData
+            await InitializeData().init_db()
+        except Exception as e:
+            logger.error(f"数据库初始化失败: {e}")
+            raise
 
     # 初始化限流器（异步）
     await init_limiter(app)
@@ -59,7 +73,7 @@ async def start_app(app: FastAPI):
         logger.warning(f"关闭 Redis 失败: {e}")
 
     try:
-        from app.infra.db.sqlalchemy import engine
+        from app.core.database import engine
         await asyncio.wait_for(engine.dispose(), timeout=5)
     except Exception as e:
         logger.warning(f"关闭数据库引擎失败: {e}")

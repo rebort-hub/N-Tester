@@ -4,7 +4,7 @@
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.infra.db.sqlalchemy import get_db
+from app.core.database import get_db
 from app.api.v1.common.health.service import HealthService
 from app.common.response import success_response
 

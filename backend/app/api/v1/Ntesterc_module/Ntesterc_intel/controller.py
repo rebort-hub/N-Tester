@@ -11,7 +11,7 @@ from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
 
-from app.infra.db.sqlalchemy import get_db
+from app.core.database import get_db
 from app.core.dependencies import get_current_user_id
 from app.common.response import success_response, error_response
 
@@ -268,7 +268,7 @@ async def analyze_requirement_document(
 ):
     """分析需求文档"""
     try:
-        from app.infra.db.sqlalchemy import async_session_factory
+        from app.core.database import async_session_factory
         
         # 后台执行分析
         async def run_analysis():
@@ -1051,7 +1051,7 @@ async def execute_ai_case(
     """
     try:
         from .service import AICaseService
-        from app.infra.db.sqlalchemy import async_session_factory
+        from app.core.database import async_session_factory
         
         # 后台执行任务
         async def run_execution():
@@ -1107,7 +1107,7 @@ async def batch_execute_ai_cases(
         
         # 导入服务
         from .service import AICaseService
-        from app.infra.db.sqlalchemy import async_session_factory
+        from app.core.database import async_session_factory
         
         # 后台批量执行任务
         async def run_batch_execution():
@@ -2326,7 +2326,7 @@ async def batch_delete_generation_tasks(
 
 async def start_generation_task(task_id: str):
     """启动生成任务的后台处理"""
-    from app.infra.db.sqlalchemy import engine
+    from app.core.database import engine
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import sessionmaker
     import traceback
@@ -2760,7 +2760,7 @@ async def extract_figma_requirements(
         from .crud import FigmaConfigCRUD, AIModelConfigCRUD
         from .model import FigmaConfigModel
         from app.api.v1.Ntesterc_module.Ntesterc_intel.figma_requirement_service import FigmaRequirementService
-        from app.infra.db.sqlalchemy import async_session_factory
+        from app.core.database import async_session_factory
         from datetime import datetime
         
         # 获取Figma配置
@@ -2900,7 +2900,7 @@ async def extract_figma_with_mode(
         task_id: 任务ID，用于查询进度
     """
     try:
-        from app.infra.db.sqlalchemy import async_session_factory
+        from app.core.database import async_session_factory
         from .crud import FigmaConfigCRUD, AIModelConfigCRUD
         from app.api.v1.Ntesterc_module.Ntesterc_intel.figma_extraction_service import FigmaExtractionService
         from app.api.v1.Ntesterc_module.Ntesterc_intel.figma_cache_service import FigmaCacheService
@@ -3500,7 +3500,7 @@ async def execute_ai_test_suite(
     try:
         from .test_suite_service import AITestSuiteExecutionService
         from .schema import AITestSuiteExecutionCreateSchema
-        from app.infra.db.sqlalchemy import async_session_factory
+        from app.core.database import async_session_factory
         
         # 验证数据
         exec_schema = AITestSuiteExecutionCreateSchema(

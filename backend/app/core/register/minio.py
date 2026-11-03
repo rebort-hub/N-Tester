@@ -1,7 +1,7 @@
 import asyncio
 from app.core.logger import logger
 from app.utils.common import fmt_cloudflare_html_resp
-from config import config
+from app.config.setting import config
 
 
 async def init_minio():
@@ -10,7 +10,7 @@ async def init_minio():
     """
     # 确保 MinIO Bucket 存在（不存在时自动创建），每次超时10s，最多重试3次
     # 服务端已返回 HTTP 响应（配置错误）时不重试；仅超时或连接失败才重试
-    from app.infra.storage.minio import MinioClient
+    from app.core.storage.minio import MinioClient
     _minio_ok = False
     for _attempt in range(1, 4):
         try:

@@ -7,12 +7,15 @@ gunicorn==22.0.0
 pydantic==2.12.5
 pydantic-settings==2.13.1
 
-# 数据库相关
+# 数据库相关（mysql / postgres / sqlite 三方言）
 SQLAlchemy==2.0.3
 asyncmy==0.2.7
 PyMySQL==1.0.2
 alembic==1.13.1
 aiomysql==0.3.2
+asyncpg>=0.29.0
+psycopg[binary]>=3.1.0
+aiosqlite>=0.20.0
 
 # 缓存和任务队列
 redis==5.0.4

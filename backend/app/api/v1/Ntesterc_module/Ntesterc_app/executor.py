@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 import cv2
 import numpy as np
-from app.infra.db.sqlalchemy import async_session
+from app.core.database import async_session
 from .model import AppResultModel, AppResultListModel
 from sqlalchemy import select, update
 

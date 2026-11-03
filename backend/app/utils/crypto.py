@@ -6,7 +6,7 @@ import hashlib
 
 from cryptography.fernet import Fernet
 
-from config import config
+from app.config.setting import config
 
 
 def _fernet() -> Fernet:

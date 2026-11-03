@@ -10,7 +10,7 @@ import threading
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
-from config import config
+from app.config.setting import config
 
 
 @dataclass

@@ -10,7 +10,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
-from app.infra.db.sqlalchemy import async_session
+from app.core.database import async_session
 from .model import DesktopResultModel, DesktopResultListModel
 from sqlalchemy import select
 from sqlalchemy.orm.attributes import flag_modified
@@ -24,7 +24,7 @@ async def _send_finish_notification(
     """执行完成后通过统一通知系统推送结果"""
     try:
         from app.api.v1.Ntesterc_module.Ntesterc_notifications.service import task_notification_service
-        from app.infra.db.sqlalchemy import async_session as _session
+        from app.core.database import async_session as _session
         percent = round(passed / total * 100, 2) if total else 0
         status = "success" if fail == 0 else "failed"
         message = (
@@ -126,12 +126,12 @@ def run_desktop_process(
 
     # 截图保存目录（backend/static/desktop_result/<result_id>）
     from pathlib import Path
-    from config import config as app_config
+    from app.config.setting import config as app_config
     base_dir = Path(__file__).resolve().parents[4] / app_config.STATIC_DIR / "desktop_result" / result_id
     base_dir.mkdir(parents=True, exist_ok=True)
 
     # 子进程重新初始化数据库引擎，避免复用父进程连接池导致连接损坏
-    from app.infra.db.sqlalchemy import reinit_engine
+    from app.core.database import reinit_engine
     try:
         reinit_engine()
     except Exception:

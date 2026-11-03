@@ -8,9 +8,9 @@ import asyncio
 import signal
 from typing import Optional
 from app.core.logger import init_logger, logger
-from app.infra.db import get_redis_pool
-from app.infra.db.sqlalchemy import async_session
-from config import config
+from app.core.redis import get_redis_pool
+from app.core.database import async_session
+from app.config.setting import config
 
 
 class SchedulerRunner:
@@ -127,7 +127,7 @@ class SchedulerRunner:
                 elif action == "scheduler.reload":
                     # 清空现有 job，并从 DB 重新加载启用任务
                     from app.api.v1.Ntesterc_module.Ntesterc_task_scheduler.service import TaskSchedulerService
-                    from app.infra.db.sqlalchemy import async_session
+                    from app.core.database import async_session
 
                     before_jobs = scheduler.get_jobs()
                     before_ids = [str(j.id) for j in before_jobs]

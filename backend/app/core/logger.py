@@ -8,7 +8,7 @@ import sys
 import logging
 from pathlib import Path
 from loguru import logger
-from config import config
+from app.config.setting import config
 from app.core.local import g
 from app.utils import create_dir
 from app.utils.common import get_str_uuid

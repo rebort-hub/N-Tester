@@ -6,7 +6,7 @@ from typing import List
 from fastapi import APIRouter, UploadFile, File, Depends, Query, Request, Form
 from fastapi.responses import FileResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.infra.db.sqlalchemy import get_db
+from app.core.database import get_db
 from app.core.dependencies import get_current_user_id
 from app.api.v1.system.file.service import FileService
 from app.api.v1.system.file.schema import (

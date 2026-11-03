@@ -19,7 +19,7 @@ from app.api.v1.Ntesterc_module.Ntesterc_performance.config.crud import PerfMach
 from app.api.v1.Ntesterc_module.Ntesterc_performance.files.model import PerfFileModel
 from app.api.v1.Ntesterc_module.Ntesterc_performance.files.service import _build_credential
 from app.core.base_crud import BaseCRUD
-from app.infra.storage.minio import MinioClient
+from app.core.storage.minio import MinioClient
 from app.core.logger import logger
 from app.common.constants import JMETER_DEBUG_GUI_LABEL
 from app.utils.common import get_next_code, format_sse_event, fmt_cloudflare_html_resp
@@ -1031,7 +1031,7 @@ def _check_master_to_workers(master, workers: list, is_dist: bool) -> dict:
     if not workers:
         return {"ok": None, "detail": "未配置 Slave Worker 压力机", "sub": []}
 
-    from config import config as _cfg
+    from app.config.setting import config as _cfg
     ssh_user = _cfg.SSH_DEFAULT_USER
     ssh_pwd  = _cfg.SSH_DEFAULT_PASSWORD
 
@@ -1256,7 +1256,7 @@ class ScenarioExecuteService:
 
         # ── 3. 从 MinIO 下载 JMX ──
         try:
-            from config import config as app_config
+            from app.config.setting import config as app_config
             jmx_bytes = await MinioClient.get_object_bytes(app_config.MINIO_BUCKET, file_obj.object_key)
         except Exception as e:
             logger.error(f'平台机连接 MinIO 下载 JMX 脚本失败 scenario_id={scenario_id}：{fmt_cloudflare_html_resp(e, "请检查 MinIO 地址或网络配置")}')
@@ -1621,7 +1621,7 @@ class ScenarioExecuteService:
             SSE 事件：stage_start / stage_done / done / error
         """
         from datetime import datetime
-        from app.infra.db import get_redis_pool
+        from app.core.redis import get_redis_pool
         from app.common.rediskeys import (
             _pid_key, _log_key, _offset_key, _evicted_key, _stage_key,
             _metric_series_key, _jtl_offset_key, _label_samples_key,
@@ -1654,7 +1654,7 @@ class ScenarioExecuteService:
             独立 session：避免 self.db 因前序异常处于 rollback-needed 状态而静默丢弃更新。
             """
             try:
-                from app.infra.db.sqlalchemy import async_session_factory
+                from app.core.database import async_session_factory
                 from app.core.base_crud import BaseCRUD as _BaseCRUD
                 async with async_session_factory() as _fail_db:
                     await _BaseCRUD(PerfScenarioModel, _fail_db).update_crud(
@@ -2100,7 +2100,7 @@ class ScenarioExecuteService:
                                     'message': f'JMeter进程恢复启动后立即退出（PID={pid_str}），请检查压力机日志'})
             return
 
-        from app.infra.db import get_redis_pool
+        from app.core.redis import get_redis_pool
         from app.common.rediskeys import (
             _pid_key, _log_key, _offset_key, _evicted_key,
             _metric_series_key, _jtl_offset_key, _label_samples_key,
@@ -2183,7 +2183,7 @@ class ScenarioExecuteService:
               error       — 场景异常
         """
         import time as _time
-        from app.infra.db import get_redis_pool
+        from app.core.redis import get_redis_pool
         from app.common.rediskeys import (
             _log_key, _evicted_key, _stage_key, _metric_series_key, _top5_key,
         )
@@ -2739,7 +2739,7 @@ class ScenarioExecuteService:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                 detail='JMX 脚本文件不存在，请重新关联')
         try:
-            from config import config as app_config
+            from app.config.setting import config as app_config
             return await MinioClient.get_object_bytes(app_config.MINIO_BUCKET, file_obj.object_key)
         except Exception as e:
             logger.error(f'平台机连接 MinIO 下载 JMX 失败 scenario_id={scenario.id}：{fmt_cloudflare_html_resp(e, "请检查 MinIO 地址或网络配置")}')
@@ -2874,7 +2874,7 @@ class ScenarioExecuteService:
         单机模式下并发的 _check_workers_to_minio 和 _check_jmeter_running 会连接同一批
         压力机，为避免重复建立 SSH 连接，gather 前预先建立 ssh_pool 并复用。
         """
-        from config import config as app_config
+        from app.config.setting import config as app_config
 
         endpoint = getattr(app_config, 'MINIO_ENDPOINT', '') or ''
         minio_secure = getattr(app_config, 'MINIO_SECURE', False) or False
@@ -3010,7 +3010,7 @@ async def stop_running_scenario(scenario_id: int, user_id: int, db: AsyncSession
         user_id:     操作人 ID
         db:          当前异步数据库会话
     """
-    from app.infra.db import get_redis_pool
+    from app.core.redis import get_redis_pool
     from app.common.rediskeys import (
         _pid_key, _log_key, _offset_key, _evicted_key, _stage_key,
         _metric_series_key, _jtl_offset_key, _label_samples_key,

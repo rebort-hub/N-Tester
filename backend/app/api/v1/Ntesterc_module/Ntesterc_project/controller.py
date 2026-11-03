@@ -6,7 +6,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infra.db.sqlalchemy import get_db
+from app.core.database import get_db
 from app.core.dependencies import get_current_user_id
 from app.api.v1.Ntesterc_module.Ntesterc_project.service import ProjectService
 from app.api.v1.Ntesterc_module.Ntesterc_project.schema import (

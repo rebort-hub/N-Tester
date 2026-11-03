@@ -5,14 +5,20 @@
 日志记录中间件
 """
 
-import time
 import json
+import time
 from typing import Callable
-from fastapi import Request, Response
-from starlette.middleware.base import BaseHTTPMiddleware
+
+from fastapi import FastAPI, Request, Response
+from loguru import logger as _logger
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.infra.db.sqlalchemy import get_db
+from starlette.middleware.base import BaseHTTPMiddleware
+
 from app.api.v1.system.log.service import OperationLogService
+from app.core import g
+from app.core.database import get_db
+from app.utils.common import get_str_uuid
+from app.utils.context import AppTraceId
 
 
 class LogMiddleware(BaseHTTPMiddleware):
@@ -212,3 +218,20 @@ class LogMiddleware(BaseHTTPMiddleware):
         module = self._get_module_name(request)
         
         return f"{operation}{module}数据"
+
+
+def init_middleware(app: FastAPI):
+    """注册日志中间件与请求追踪中间件。"""
+    app.add_middleware(LogMiddleware)
+
+    @app.middleware("http")
+    async def intercept(request: Request, call_next):
+        g.trace_id = get_str_uuid()
+        AppTraceId.set(g.trace_id)
+        start_time = time.time()
+        remote_addr = request.headers.get("X-Real-IP", request.client.host if request.client else "")
+        _logger.info(f"访问记录:IP:{remote_addr}-method:{request.method}-url:{request.url}")
+        response = await call_next(request)
+        response.headers["X-request-id"] = g.trace_id
+        _logger.info(f"请求耗时： {time.time() - start_time}")
+        return response

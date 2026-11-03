@@ -8,7 +8,7 @@
 from typing import List
 from fastapi import APIRouter, Depends, Query, Body
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.infra.db.sqlalchemy import get_db
+from app.core.database import get_db
 from app.core.dependencies import get_current_user_id
 from app.api.v1.system.user.service import UserService
 from app.api.v1.system.user.schema import (

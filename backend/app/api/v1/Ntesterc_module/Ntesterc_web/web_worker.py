@@ -7,7 +7,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any, Dict
 
-from app.infra.db.sqlalchemy import async_session_factory
+from app.core.database import async_session_factory
 
 from .playwright_runner import run_web_async
 

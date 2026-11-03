@@ -4,7 +4,7 @@
 import os
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.infra.db.sqlalchemy import get_db
+from app.core.database import get_db
 from app.core.dependencies import get_current_user_id
 from app.common.response import success_response, error_response
 from app.utils.common import body_to_json
@@ -119,7 +119,7 @@ async def app_view_device(
     """APP查看设备"""
     try:
         data = await body_to_json(request)
-        from config import config
+        from app.config.setting import config
         device_url = f"{config.DEVICE_URL}/#!action=stream&udid={data['device_id']}&player=mse&ws=ws%3A%2F%2F{config.IP}%3A8000%2F%3Faction%3Dproxy-adb%26remote%3Dtcp%253A8886%26udid%3D{data['device_id']}"
         return success_response({"device_url": device_url})
     except Exception as e:

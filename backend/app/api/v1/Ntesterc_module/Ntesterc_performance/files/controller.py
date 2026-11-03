@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.common.response import success_response
 from app.core.dependencies import get_current_user_id
 from app.core.logger import logger
-from app.infra.db.sqlalchemy import get_db
+from app.core.database import get_db
 from .schema import (
     PerfFileConfirmReqSchema,
     PerfFileConfirmReuploadReqSchema,

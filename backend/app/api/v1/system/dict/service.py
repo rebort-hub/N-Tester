@@ -16,8 +16,8 @@ DICT_CACHE_KEY_PREFIX = "dict:"
 
 async def _invalidate_dict_cache(dict_type: str) -> None:
     """删除指定 dict_type 对应的 Redis 缓存，供字典写操作调用。"""
-    from app.infra.db import get_redis_pool
-    from config import config
+    from app.core.redis import get_redis_pool
+    from app.config.setting import config
     redis_pool = get_redis_pool()
     if not redis_pool.redis:
         redis_pool.init_by_config(config=config)

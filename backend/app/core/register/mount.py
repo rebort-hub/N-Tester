@@ -4,7 +4,7 @@ import os
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from config import config
+from app.config.setting import config
 
 
 def _portable_root() -> str | None:

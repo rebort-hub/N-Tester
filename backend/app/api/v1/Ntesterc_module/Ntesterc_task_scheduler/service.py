@@ -586,7 +586,7 @@ class TaskSchedulerService:
         try:
             # type==3 → ApiAutomationService.run_api_script()
             if int(task_config.get("type") or 0) == 3:
-                from app.infra.db.sqlalchemy import async_session
+                from app.core.database import async_session
                 from app.api.v1.Ntesterc_module.Ntesterc_api.service import ApiAutomationService
                 from app.api.v1.Ntesterc_module.Ntesterc_api.model import ApiScriptModel
 
@@ -640,7 +640,7 @@ class TaskSchedulerService:
                 }
             # type==2-->WebManagementService.execute_web_script()
             elif int(task_config.get("type") or 0) == 2:
-                from app.infra.db.sqlalchemy import async_session
+                from app.core.database import async_session
                 from app.api.v1.Ntesterc_module.Ntesterc_web.service import WebManagementService
                 from app.api.v1.Ntesterc_module.Ntesterc_web.model import WebGroupModel
 
@@ -723,7 +723,7 @@ class TaskSchedulerService:
 
         # APScheduler 回调不走 FastAPI Depends，这里单独创建 session 做落库与状态更新
         try:
-            from app.infra.db.sqlalchemy import async_session
+            from app.core.database import async_session
             from .scheduler import get_scheduler
 
             async with async_session() as session:
@@ -783,10 +783,10 @@ class TaskSchedulerService:
         """
         发送任务通知：对接通知模块。
         """
-        from app.infra.db.sqlalchemy import async_session
+        from app.core.database import async_session
         from app.api.v1.Ntesterc_module.Ntesterc_notifications.service import notification_service, task_notification_service
         from app.api.v1.Ntesterc_module.Ntesterc_notifications.schema import SendNotificationRequest
-        from config import config as app_config
+        from app.config.setting import config as app_config
 
         task_id = int(task_result.get("task_id") or 0)
         if not task_id:

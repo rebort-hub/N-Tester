@@ -8,7 +8,7 @@ import redis.asyncio as aioredis
 from fastapi_limiter import FastAPILimiter
 from fastapi_limiter.depends import RateLimiter
 
-from config import config
+from app.config.setting import config
 
 
 def get_real_ip(request: Request) -> str:

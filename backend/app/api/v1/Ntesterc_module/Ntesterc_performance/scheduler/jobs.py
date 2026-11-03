@@ -110,7 +110,7 @@ async def run_perf_scheduler_job(scheduler_id: int) -> None:
     Args:
         scheduler_id: 定时任务主键 ID
     """
-    from app.infra.db.sqlalchemy import async_session_factory
+    from app.core.database import async_session_factory
     from app.core.base_crud import BaseCRUD
     from .model import PerfSchedulerModel
 
@@ -184,7 +184,7 @@ async def run_perf_scheduler_job(scheduler_id: int) -> None:
     error_msg: str | None = None
     try:
         from app.api.v1.Ntesterc_module.Ntesterc_performance.scenario.service import ScenarioExecuteService
-        from app.infra.db import get_redis_pool
+        from app.core.redis import get_redis_pool
         from app.common.rediskeys import _log_key, _stage_key
 
         _redis = get_redis_pool().get_redis()
@@ -269,7 +269,7 @@ async def load_perf_pending_jobs() -> None:
     仅恢复 task_status=0（待触发）且 is_active=1（启用）的记录。
     """
     from sqlalchemy import select, and_
-    from app.infra.db.sqlalchemy import async_session_factory
+    from app.core.database import async_session_factory
     from .model import PerfSchedulerModel
 
     try:

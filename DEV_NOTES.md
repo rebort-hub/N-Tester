@@ -780,7 +780,7 @@ mysql -u root -p 数据库名 -e "SELECT * FROM alembic_version;"
 
 :: 方式二：Python 脚本（任何终端均可）
 python -c "
-from config import settings
+from app.config.setting import config
 from sqlalchemy import create_engine, text
 engine = create_engine(settings.DATABASE_URI_SYNC)
 with engine.connect() as conn:
@@ -817,7 +817,7 @@ mysql -u root -p 数据库名 -e "UPDATE alembic_version SET version_num='9f0791
 
 :: 方式二：Python 脚本
 python -c "
-from config import settings
+from app.config.setting import config
 from sqlalchemy import create_engine, text
 engine = create_engine(settings.DATABASE_URI_SYNC)
 with engine.connect() as conn:

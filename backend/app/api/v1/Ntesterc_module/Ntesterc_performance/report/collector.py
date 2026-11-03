@@ -79,9 +79,9 @@ async def create_collecting_record(
     Returns:
         report_id（perf_reports 主键），后续传给 collect_report_async。
     """
-    from app.infra.db.sqlalchemy import async_session_factory
+    from app.core.database import async_session_factory
     from app.core.base_crud import BaseCRUD
-    from config import config
+    from app.config.setting import config
     from .model import PerfReportModel
 
     report_code = _generate_report_code()
@@ -256,7 +256,7 @@ class ReportCollector:
         """采集三个源文件的原始 MD5 签名并写库，供恢复收集时校验一致性。
         若 create_collecting_record 已在创建记录时写入 MD5，则跳过重复采集。
         """
-        from app.infra.db.sqlalchemy import async_session_factory
+        from app.core.database import async_session_factory
         from app.core.base_crud import BaseCRUD
         from .model import PerfReportModel
 
@@ -385,7 +385,7 @@ class ReportCollector:
             _stop_requested.discard(self.report_id)
             return
 
-        from app.infra.db.sqlalchemy import async_session_factory
+        from app.core.database import async_session_factory
         from app.core.base_crud import BaseCRUD
         from .model import PerfReportModel
 
@@ -419,7 +419,7 @@ class ReportCollector:
         }
 
         # finally 块依赖的变量提前初始化为安全默认值，防止 try 内出错时引发 NameError
-        from app.infra.storage.minio import MinioClient
+        from app.core.storage.minio import MinioClient
         bucket            = ''
         collector_log_key = ''
         report_code       = ''
@@ -427,12 +427,12 @@ class ReportCollector:
         file_size         = 0
 
         try:
-            from app.infra.db.sqlalchemy import async_session_factory
+            from app.core.database import async_session_factory
             from app.core.base_crud import BaseCRUD
             from app.api.v1.Ntesterc_module.Ntesterc_performance.scenario.model import PerfScenarioModel
             from app.api.v1.Ntesterc_module.Ntesterc_performance.config.crud import PerfMachineCRUD
             from app.utils.oper_shell import ShellOperationUtils
-            from config import config
+            from app.config.setting import config
             from .model import PerfReportModel
 
             bucket = config.MINIO_BUCKET

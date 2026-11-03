@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from app.infra.db.sqlalchemy import get_db
+from app.core.database import get_db
 from app.common.response import success_response, page_response
 from app.api.v1.system.auth.dependencies import (
     get_current_user, 

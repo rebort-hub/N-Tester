@@ -12,7 +12,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1.Ntesterc_module.Ntesterc_cloud_device.model import AppDevice
 from app.common.response import success_response, error_response
-from config import config
+from app.config.setting import config
 from .model import MitmproxyApi
 from .process import process_mitmproxy
 

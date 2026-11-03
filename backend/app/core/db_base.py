@@ -16,17 +16,50 @@ except ImportError:
     import logging
     logger = logging.getLogger(__name__)
 
-from sqlalchemy import Boolean, DateTime, func, select, update, delete, insert, Select, \
+from sqlalchemy import Boolean, DateTime, TypeDecorator, func, select, update, delete, insert, Select, \
     Executable, Result, String, ClauseList, BigInteger, literal_column, Row
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.declarative import as_declarative
 from sqlalchemy.orm import mapped_column, noload
+from sqlalchemy.sql import operators
 
 from app.utils.serialize import default_serialize
-from app.infra.db.sqlalchemy import async_transaction
+from app.core.database import async_transaction
 from app.utils.context import AppTraceId, SQLAlchemySession, FastApiRequest
 
 T = typing.TypeVar("T", Select, "Query[Any]")
+
+
+class SoftDeleteFlag(TypeDecorator):
+    """软删除标记：应用层用 0/1，库层按方言存 boolean（PG）或 tinyint（MySQL）。
+
+    解决 Postgres ``boolean = integer``（如 ``enabled_flag == 1``）报错。
+    """
+
+    impl = Boolean
+    cache_ok = True
+
+    @staticmethod
+    def _to_bool(value: typing.Any) -> typing.Optional[bool]:
+        if value is None:
+            return None
+        if isinstance(value, bool):
+            return value
+        return bool(int(value))
+
+    def process_bind_param(self, value, dialect):
+        return self._to_bool(value)
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        return 1 if value else 0
+
+    def coerce_compared_value(self, op, value):
+        # ``col == 1`` / ``col != 0`` 时让右侧走本类型的 bind 处理 → 绑定为 bool
+        if op in (operators.eq, operators.ne, operators.is_, operators.is_not):
+            return self
+        return self.impl.coerce_compared_value(op, value)
 
 
 @as_declarative()
@@ -39,7 +72,7 @@ class Base:
     __abstract__ = True
 
     __name__: str  # 表名
-    __table_args__ = {"mysql_charset": "utf8"}  # 设置表的字符集
+    __table_args__ = {"mysql_charset": "utf8mb4", "mysql_collate": "utf8mb4_general_ci"}
 
     __mapper_args__ = {"eager_defaults": True}  # 防止 insert 插入后不刷新
 
@@ -53,7 +86,7 @@ class Base:
     created_by = mapped_column(BigInteger, nullable=True, comment='创建人ID')
     updation_date = mapped_column(DateTime(), default=func.now(), onupdate=func.now(), comment='更新时间')
     updated_by = mapped_column(BigInteger, nullable=True, comment='更新人ID')
-    enabled_flag = mapped_column(Boolean(), default=1, nullable=False, comment='是否删除, 0 删除 1 非删除')
+    enabled_flag = mapped_column(SoftDeleteFlag(), default=1, nullable=False, comment='是否删除, 0 删除 1 非删除')
     trace_id = mapped_column(String(255), nullable=True, comment="trace_id")
 
     @classmethod

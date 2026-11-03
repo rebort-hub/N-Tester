@@ -26,7 +26,7 @@ from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from sqlalchemy import create_engine
 from app.core.logger import logger
-from config import config
+from app.config.setting import config
 
 
 _scheduler: Optional[AsyncIOScheduler] = None

@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infra.db.sqlalchemy import get_db
+from app.core.database import get_db
 
 from .mock_service import ApiMockRuntime
 

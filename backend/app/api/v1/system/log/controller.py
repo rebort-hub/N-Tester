@@ -4,7 +4,7 @@
 
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.infra.db.sqlalchemy import get_db
+from app.core.database import get_db
 from app.api.v1.system.log.service import OperationLogService, LoginLogService
 from app.api.v1.system.log.schema import (
     OperationLogQuerySchema,
